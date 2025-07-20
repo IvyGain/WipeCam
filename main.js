@@ -6,20 +6,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let mainWindow = null;
-let currentSizeIndex = 0;
-const sizePresets = [
-  { width: 160, height: 120 },   // 極小
-  { width: 320, height: 240 },   // 小
-  { width: 480, height: 360 },   // 中
-  { width: 640, height: 480 },   // 大
-  { width: 960, height: 720 }    // 極大
-];
 
 function createWindow() {
-  const initialSize = sizePresets[currentSizeIndex];
   mainWindow = new BrowserWindow({
-    width: initialSize.width,
-    height: initialSize.height,
+    width: 320,
+    height: 240,
+    minWidth: 160,
+    minHeight: 120,
+    maxWidth: 1200,
+    maxHeight: 900,
     transparent: true,
     frame: false,
     alwaysOnTop: true,
@@ -45,46 +40,53 @@ function createWindow() {
 }
 
 function registerGlobalShortcuts() {
-  // ホットキー: Ctrl+Shift+W - ウィンドウの表示/非表示
-  globalShortcut.register('CommandOrControl+Shift+W', () => {
-    if (mainWindow) {
-      if (mainWindow.isVisible()) {
-        mainWindow.hide();
-      } else {
-        mainWindow.show();
+  try {
+    // ホットキー: Ctrl+Shift+W - ウィンドウの表示/非表示
+    const registered1 = globalShortcut.register('CommandOrControl+Shift+W', () => {
+      console.log('Hotkey triggered: Show/Hide window');
+      if (mainWindow) {
+        if (mainWindow.isVisible()) {
+          mainWindow.hide();
+        } else {
+          mainWindow.show();
+        }
       }
-    }
-  });
+    });
+    console.log('CommandOrControl+Shift+W registered:', registered1);
 
-  // ホットキー: Ctrl+Shift+B - 背景除去のトグル
-  globalShortcut.register('CommandOrControl+Shift+B', () => {
-    if (mainWindow) {
-      mainWindow.webContents.send('toggle-background');
-    }
-  });
+    // ホットキー: Ctrl+Shift+B - 背景除去のトグル
+    const registered2 = globalShortcut.register('CommandOrControl+Shift+B', () => {
+      console.log('Hotkey triggered: Toggle background');
+      if (mainWindow) {
+        mainWindow.webContents.send('toggle-background');
+      }
+    });
+    console.log('CommandOrControl+Shift+B registered:', registered2);
 
-  // ホットキー: Ctrl+Shift+S - サイズ変更
-  globalShortcut.register('CommandOrControl+Shift+S', () => {
-    if (mainWindow) {
-      changeSizePreset();
-    }
-  });
+    // ホットキー: Ctrl+Shift+S - サイズ変更（無効化）
+    // changeSizePreset関数はもう使わないのでコメントアウト
+    /*
+    const registered3 = globalShortcut.register('CommandOrControl+Shift+S', () => {
+      console.log('Hotkey triggered: Change size');
+      if (mainWindow) {
+        changeSizePreset();
+      }
+    });
+    console.log('CommandOrControl+Shift+S registered:', registered3);
+    */
 
-  // ホットキー: Ctrl+Shift+Q - アプリ終了
-  globalShortcut.register('CommandOrControl+Shift+Q', () => {
-    app.quit();
-  });
+    // ホットキー: Ctrl+Shift+Q - アプリ終了
+    const registered4 = globalShortcut.register('CommandOrControl+Shift+Q', () => {
+      console.log('Hotkey triggered: Quit app');
+      app.quit();
+    });
+    console.log('CommandOrControl+Shift+Q registered:', registered4);
+    
+  } catch (error) {
+    console.error('Failed to register global shortcuts:', error);
+  }
 }
 
-function changeSizePreset() {
-  if (!mainWindow) return;
-  
-  currentSizeIndex = (currentSizeIndex + 1) % sizePresets.length;
-  const newSize = sizePresets[currentSizeIndex];
-  
-  mainWindow.setSize(newSize.width, newSize.height);
-  mainWindow.webContents.send('size-changed', newSize);
-}
 
 app.whenReady().then(() => {
   createWindow();
@@ -121,19 +123,63 @@ ipcMain.on('move-window', (event, { x, y }) => {
   }
 });
 
-ipcMain.on('change-size', () => {
-  changeSizePreset();
-});
-
-ipcMain.handle('get-current-size', () => {
-  return sizePresets[currentSizeIndex];
-});
 
 ipcMain.handle('get-hotkeys', () => {
   return {
     'Ctrl+Shift+W': 'ウィンドウの表示/非表示',
     'Ctrl+Shift+B': '背景除去のON/OFF',
-    'Ctrl+Shift+S': 'サイズ変更',
     'Ctrl+Shift+Q': 'アプリ終了'
   };
+});
+
+ipcMain.on('start-resize', (event, direction) => {
+  if (mainWindow) {
+    mainWindow.webContents.send('resize-started', direction);
+  }
+});
+
+ipcMain.on('resize-window', (event, { direction, deltaX, deltaY }) => {
+  if (!mainWindow) return;
+  
+  const [currentWidth, currentHeight] = mainWindow.getSize();
+  const [currentX, currentY] = mainWindow.getPosition();
+  
+  let newWidth = currentWidth;
+  let newHeight = currentHeight;
+  let newX = currentX;
+  let newY = currentY;
+  
+  switch (direction) {
+    case 'nw':
+      newWidth = Math.max(160, currentWidth - deltaX);
+      newHeight = Math.max(120, currentHeight - deltaY);
+      newX = currentX + (currentWidth - newWidth);
+      newY = currentY + (currentHeight - newHeight);
+      break;
+    case 'ne':
+      newWidth = Math.max(160, currentWidth + deltaX);
+      newHeight = Math.max(120, currentHeight - deltaY);
+      newY = currentY + (currentHeight - newHeight);
+      break;
+    case 'sw':
+      newWidth = Math.max(160, currentWidth - deltaX);
+      newHeight = Math.max(120, currentHeight + deltaY);
+      newX = currentX + (currentWidth - newWidth);
+      break;
+    case 'se':
+      newWidth = Math.max(160, currentWidth + deltaX);
+      newHeight = Math.max(120, currentHeight + deltaY);
+      break;
+  }
+  
+  // 最大サイズ制限
+  newWidth = Math.min(1200, newWidth);
+  newHeight = Math.min(900, newHeight);
+  
+  mainWindow.setBounds({
+    x: Math.round(newX),
+    y: Math.round(newY),
+    width: Math.round(newWidth),
+    height: Math.round(newHeight)
+  });
 });

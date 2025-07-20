@@ -10,10 +10,14 @@
   <div id="container">
     <video id="video" autoplay muted style="display: none;"></video>
     <canvas id="canvas"></canvas>
+    
+    <!-- Resize handles -->
+    <div class="resize-handle nw" data-direction="nw"></div>
+    <div class="resize-handle ne" data-direction="ne"></div>
+    <div class="resize-handle sw" data-direction="sw"></div>
+    <div class="resize-handle se" data-direction="se"></div>
     <div id="controls">
       <button id="toggle-bg" title="背景除去 (Ctrl+Shift+B)">🎭</button>
-      <button id="toggle-size">↔️</button>
-      <button id="change-size" title="サイズ変更 (Ctrl+Shift+S)">📐</button>
       <button id="settings" title="設定">⚙️</button>
       <button id="show-hotkeys" title="ホットキー一覧">⌨️</button>
       <button id="close" title="閉じる (Ctrl+Shift+Q)">✕</button>
