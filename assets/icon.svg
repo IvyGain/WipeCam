@@ -1,0 +1,33 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景円 -->
+  <circle cx="256" cy="256" r="240" fill="#007AFF" stroke="#0056D3" stroke-width="8"/>
+  
+  <!-- カメラボディ -->
+  <rect x="180" y="200" width="152" height="120" rx="20" fill="#FFFFFF"/>
+  <rect x="190" y="210" width="132" height="100" rx="15" fill="#F0F0F0"/>
+  
+  <!-- レンズ -->
+  <circle cx="256" cy="260" r="45" fill="#333333"/>
+  <circle cx="256" cy="260" r="35" fill="#1A1A1A"/>
+  <circle cx="256" cy="260" r="25" fill="#000000"/>
+  
+  <!-- レンズ反射 -->
+  <circle cx="245" cy="250" r="8" fill="#FFFFFF" opacity="0.7"/>
+  
+  <!-- カメラ上部のボタン -->
+  <rect x="290" y="180" width="30" height="15" rx="7" fill="#FF3B30"/>
+  
+  <!-- 背景除去を表すエフェクト線 -->
+  <path d="M 120 150 Q 180 120 240 150" stroke="#00D2FF" stroke-width="6" fill="none" opacity="0.8"/>
+  <path d="M 120 170 Q 180 140 240 170" stroke="#00D2FF" stroke-width="4" fill="none" opacity="0.6"/>
+  <path d="M 120 190 Q 180 160 240 190" stroke="#00D2FF" stroke-width="2" fill="none" opacity="0.4"/>
+  
+  <path d="M 272 150 Q 332 120 392 150" stroke="#00D2FF" stroke-width="6" fill="none" opacity="0.8"/>
+  <path d="M 272 170 Q 332 140 392 170" stroke="#00D2FF" stroke-width="4" fill="none" opacity="0.6"/>
+  <path d="M 272 190 Q 332 160 392 190" stroke="#00D2FF" stroke-width="2" fill="none" opacity="0.4"/>
+  
+  <!-- 魔法のエフェクト（星） -->
+  <path d="M 150 300 L 155 310 L 165 310 L 157 318 L 160 328 L 150 322 L 140 328 L 143 318 L 135 310 L 145 310 Z" fill="#FFD700"/>
+  <path d="M 370 320 L 373 326 L 379 326 L 374 330 L 376 336 L 370 333 L 364 336 L 366 330 L 361 326 L 367 326 Z" fill="#FFD700"/>
+  <path d="M 180 350 L 182 354 L 186 354 L 183 357 L 184 361 L 180 359 L 176 361 L 177 357 L 174 354 L 178 354 Z" fill="#FFD700"/>
+</svg>
