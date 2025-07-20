@@ -376,21 +376,38 @@ function initializeSettings() {
   
   if (thresholdSlider) {
     thresholdSlider.addEventListener('input', (e) => {
+      e.stopPropagation();
       segmentationThreshold = parseFloat(e.target.value);
-      thresholdValue.textContent = segmentationThreshold.toFixed(1);
+      if (thresholdValue) thresholdValue.textContent = segmentationThreshold.toFixed(1);
+    });
+    
+    // マウスイベントでもドラッグを防止
+    thresholdSlider.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
     });
   }
   
   if (blurSlider) {
     blurSlider.addEventListener('input', (e) => {
+      e.stopPropagation();
       blurAmount = parseInt(e.target.value);
-      blurValue.textContent = `${blurAmount}px`;
+      if (blurValue) blurValue.textContent = `${blurAmount}px`;
+    });
+    
+    // マウスイベントでもドラッグを防止
+    blurSlider.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
     });
   }
   
   if (effectSelect) {
     effectSelect.addEventListener('change', (e) => {
+      e.stopPropagation();
       currentEffect = e.target.value;
+    });
+    
+    effectSelect.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
     });
   }
 }
@@ -428,10 +445,13 @@ function hideHotkeysModal() {
 
 function initializeResizeHandles() {
   const resizeHandles = document.querySelectorAll('.resize-handle');
+  const container = document.getElementById('container');
   let isResizing = false;
   let currentDirection = null;
   let startX = 0;
   let startY = 0;
+  let startWidth = 0;
+  let startHeight = 0;
   
   resizeHandles.forEach(handle => {
     const direction = handle.dataset.direction;
@@ -442,11 +462,17 @@ function initializeResizeHandles() {
       
       isResizing = true;
       currentDirection = direction;
-      startX = e.clientX;
-      startY = e.clientY;
+      startX = e.screenX;
+      startY = e.screenY;
+      
+      const rect = container.getBoundingClientRect();
+      startWidth = rect.width;
+      startHeight = rect.height;
       
       document.body.style.cursor = getComputedStyle(handle).cursor;
-      window.electronAPI.startResize(direction);
+      document.body.style.userSelect = 'none';
+      
+      console.log(`Starting resize: ${direction}, startSize: ${startWidth}x${startHeight}`);
     });
   });
   
@@ -454,13 +480,49 @@ function initializeResizeHandles() {
     if (!isResizing || !currentDirection) return;
     
     e.preventDefault();
-    const deltaX = e.clientX - startX;
-    const deltaY = e.clientY - startY;
     
-    window.electronAPI.resizeWindow(currentDirection, deltaX, deltaY);
+    const deltaX = e.screenX - startX;
+    const deltaY = e.screenY - startY;
     
-    startX = e.clientX;
-    startY = e.clientY;
+    let newWidth = startWidth;
+    let newHeight = startHeight;
+    
+    // 方向に応じてサイズを計算
+    switch (currentDirection) {
+      case 'nw':
+        newWidth = Math.max(160, startWidth - deltaX);
+        newHeight = Math.max(120, startHeight - deltaY);
+        break;
+      case 'ne':
+        newWidth = Math.max(160, startWidth + deltaX);
+        newHeight = Math.max(120, startHeight - deltaY);
+        break;
+      case 'sw':
+        newWidth = Math.max(160, startWidth - deltaX);
+        newHeight = Math.max(120, startHeight + deltaY);
+        break;
+      case 'se':
+        newWidth = Math.max(160, startWidth + deltaX);
+        newHeight = Math.max(120, startHeight + deltaY);
+        break;
+    }
+    
+    // 最大サイズ制限
+    newWidth = Math.min(1200, newWidth);
+    newHeight = Math.min(900, newHeight);
+    
+    // コンテナサイズを直接変更
+    container.style.width = `${newWidth}px`;
+    container.style.height = `${newHeight}px`;
+    
+    // キャンバスサイズも同期
+    if (canvasElement) {
+      canvasElement.width = newWidth;
+      canvasElement.height = newHeight;
+    }
+    
+    // Electronウィンドウサイズを同期
+    window.electronAPI.resizeWindow(newWidth, newHeight);
   });
   
   document.addEventListener('mouseup', () => {
@@ -468,6 +530,8 @@ function initializeResizeHandles() {
       isResizing = false;
       currentDirection = null;
       document.body.style.cursor = 'default';
+      document.body.style.userSelect = '';
+      console.log('Resize ended');
     }
   });
 }
@@ -524,7 +588,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const container = document.getElementById('container');
   
   container.addEventListener('mousedown', (e) => {
-    if (e.target.tagName === 'BUTTON') return;
+    // リサイズハンドル、ボタン、設定パネル内の要素の場合はドラッグ無効
+    if (e.target.tagName === 'BUTTON' || 
+        e.target.classList.contains('resize-handle') ||
+        e.target.closest('.settings-panel') ||
+        e.target.closest('#controls') ||
+        e.target.tagName === 'INPUT' ||
+        e.target.tagName === 'SELECT' ||
+        e.target.tagName === 'LABEL') return;
     
     initialX = e.clientX;
     initialY = e.clientY;

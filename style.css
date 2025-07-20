@@ -143,59 +143,54 @@ button:active {
 /* Resize handles */
 .resize-handle {
   position: absolute;
-  z-index: 100;
+  z-index: 1000;
   -webkit-app-region: no-drag;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.2s ease, background 0.2s ease;
 }
 
 .resize-handle.nw {
-  top: -5px;
-  left: -5px;
-  width: 15px;
-  height: 15px;
+  top: -10px;
+  left: -10px;
+  width: 20px;
+  height: 20px;
   cursor: nw-resize;
 }
 
 .resize-handle.ne {
-  top: -5px;
-  right: -5px;
-  width: 15px;
-  height: 15px;
+  top: -10px;
+  right: -10px;
+  width: 20px;
+  height: 20px;
   cursor: ne-resize;
 }
 
 .resize-handle.sw {
-  bottom: -5px;
-  left: -5px;
-  width: 15px;
-  height: 15px;
+  bottom: -10px;
+  left: -10px;
+  width: 20px;
+  height: 20px;
   cursor: sw-resize;
 }
 
 .resize-handle.se {
-  bottom: -5px;
-  right: -5px;
-  width: 15px;
-  height: 15px;
+  bottom: -10px;
+  right: -10px;
+  width: 20px;
+  height: 20px;
   cursor: se-resize;
 }
 
-.resize-handle::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 8px;
-  height: 8px;
-  background: rgba(255, 255, 255, 0.8);
-  border: 2px solid rgba(0, 0, 0, 0.3);
-  border-radius: 2px;
-  opacity: 0;
-  transition: opacity 0.2s ease;
+#container:hover .resize-handle {
+  opacity: 1;
 }
 
-#container:hover .resize-handle::after {
-  opacity: 1;
+.resize-handle:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.6);
 }
 
 .settings-panel {
@@ -210,6 +205,10 @@ button:active {
   backdrop-filter: blur(10px);
   -webkit-app-region: no-drag;
   transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.settings-panel * {
+  -webkit-app-region: no-drag;
 }
 
 .settings-panel.hidden {
@@ -237,29 +236,32 @@ button:active {
 .setting-group input[type="range"] {
   width: 100%;
   margin-bottom: 4px;
-  height: 4px;
+  height: 6px;
   background: #ddd;
-  border-radius: 2px;
+  border-radius: 3px;
   outline: none;
   -webkit-appearance: none;
+  cursor: pointer;
 }
 
 .setting-group input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   background: #007AFF;
   border-radius: 50%;
   cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .setting-group input[type="range"]::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   background: #007AFF;
   border-radius: 50%;
   cursor: pointer;
   border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .setting-group span {

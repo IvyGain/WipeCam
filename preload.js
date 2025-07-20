@@ -5,7 +5,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   moveWindow: (x, y) => ipcRenderer.send('move-window', { x, y }),
   getHotkeys: () => ipcRenderer.invoke('get-hotkeys'),
   onToggleBackground: (callback) => ipcRenderer.on('toggle-background', callback),
-  startResize: (direction) => ipcRenderer.send('start-resize', direction),
-  resizeWindow: (direction, deltaX, deltaY) => ipcRenderer.send('resize-window', { direction, deltaX, deltaY }),
-  onResizeStarted: (callback) => ipcRenderer.on('resize-started', callback)
+  resizeWindow: (newWidth, newHeight) => ipcRenderer.send('resize-window', { newWidth, newHeight })
 });

@@ -132,54 +132,14 @@ ipcMain.handle('get-hotkeys', () => {
   };
 });
 
-ipcMain.on('start-resize', (event, direction) => {
-  if (mainWindow) {
-    mainWindow.webContents.send('resize-started', direction);
-  }
-});
 
-ipcMain.on('resize-window', (event, { direction, deltaX, deltaY }) => {
+ipcMain.on('resize-window', (event, { newWidth, newHeight }) => {
   if (!mainWindow) return;
   
-  const [currentWidth, currentHeight] = mainWindow.getSize();
-  const [currentX, currentY] = mainWindow.getPosition();
+  // サイズ制限を適用
+  const width = Math.max(160, Math.min(1200, newWidth));
+  const height = Math.max(120, Math.min(900, newHeight));
   
-  let newWidth = currentWidth;
-  let newHeight = currentHeight;
-  let newX = currentX;
-  let newY = currentY;
-  
-  switch (direction) {
-    case 'nw':
-      newWidth = Math.max(160, currentWidth - deltaX);
-      newHeight = Math.max(120, currentHeight - deltaY);
-      newX = currentX + (currentWidth - newWidth);
-      newY = currentY + (currentHeight - newHeight);
-      break;
-    case 'ne':
-      newWidth = Math.max(160, currentWidth + deltaX);
-      newHeight = Math.max(120, currentHeight - deltaY);
-      newY = currentY + (currentHeight - newHeight);
-      break;
-    case 'sw':
-      newWidth = Math.max(160, currentWidth - deltaX);
-      newHeight = Math.max(120, currentHeight + deltaY);
-      newX = currentX + (currentWidth - newWidth);
-      break;
-    case 'se':
-      newWidth = Math.max(160, currentWidth + deltaX);
-      newHeight = Math.max(120, currentHeight + deltaY);
-      break;
-  }
-  
-  // 最大サイズ制限
-  newWidth = Math.min(1200, newWidth);
-  newHeight = Math.min(900, newHeight);
-  
-  mainWindow.setBounds({
-    x: Math.round(newX),
-    y: Math.round(newY),
-    width: Math.round(newWidth),
-    height: Math.round(newHeight)
-  });
+  // ウィンドウサイズを設定
+  mainWindow.setSize(Math.round(width), Math.round(height));
 });
