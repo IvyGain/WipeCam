@@ -4,6 +4,8 @@ let canvasCtx = null;
 let isSmallSize = true;
 let backgroundRemovalEnabled = false;
 let selfieSegmentation = null;
+let availableCameras = [];
+let currentCameraId = null;
 
 // 設定値
 let segmentationThreshold = 0.5;
@@ -320,6 +322,33 @@ function applyEffect(effect) {
   canvasCtx.putImageData(imageData, 0, 0);
 }
 
+// カメラデバイス取得
+async function getCameraDevices() {
+  try {
+    // 初回はカメラアクセス権限を要求してからデバイス一覧を取得
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      stream.getTracks().forEach(track => track.stop()); // すぐに停止
+    } catch (permissionError) {
+      console.warn('Camera permission not granted:', permissionError);
+    }
+    
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoDevices = devices.filter(device => device.kind === 'videoinput');
+    
+    availableCameras = videoDevices.map((device, index) => ({
+      deviceId: device.deviceId,
+      label: device.label || `カメラ ${index + 1}`
+    }));
+    
+    console.log('Available cameras:', availableCameras);
+    return availableCameras;
+  } catch (error) {
+    console.error('Failed to get camera devices:', error);
+    return [];
+  }
+}
+
 // ビデオフレームの処理
 async function processVideo() {
   if (!videoElement || !selfieSegmentation) return;
@@ -331,19 +360,34 @@ async function processVideo() {
   requestAnimationFrame(processVideo);
 }
 
-async function startCamera() {
+async function startCamera(deviceId = null) {
   videoElement = document.getElementById('video');
   canvasElement = document.getElementById('canvas');
   canvasCtx = canvasElement.getContext('2d');
   
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
+    // 既存のストリームを停止
+    if (videoElement.srcObject) {
+      const tracks = videoElement.srcObject.getTracks();
+      tracks.forEach(track => track.stop());
+    }
+    
+    const constraints = {
       video: {
         width: { ideal: 1280 },
         height: { ideal: 720 },
         facingMode: 'user'
       }
-    });
+    };
+    
+    // 特定のデバイスIDが指定されている場合は使用
+    if (deviceId) {
+      delete constraints.video.facingMode;
+      constraints.video.deviceId = { exact: deviceId };
+    }
+    
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    currentCameraId = deviceId;
     
     videoElement.srcObject = stream;
     
@@ -364,6 +408,65 @@ function toggleBackgroundRemoval() {
   backgroundRemovalEnabled = !backgroundRemovalEnabled;
   const button = document.getElementById('toggle-bg');
   button.style.opacity = backgroundRemovalEnabled ? '1' : '0.6';
+}
+
+// カメラドロップダウンの初期化
+async function initializeCameraSelect() {
+  const cameraSelect = document.getElementById('camera-select');
+  
+  try {
+    // カメラデバイスを取得
+    await getCameraDevices();
+    
+    // ドロップダウンをクリア
+    cameraSelect.innerHTML = '';
+    
+    if (availableCameras.length === 0) {
+      cameraSelect.innerHTML = '<option value="">カメラが見つかりません</option>';
+      return;
+    }
+    
+    // デフォルトオプション
+    cameraSelect.innerHTML = '<option value="">デフォルトカメラ</option>';
+    
+    // 利用可能なカメラを追加
+    availableCameras.forEach(camera => {
+      const option = document.createElement('option');
+      option.value = camera.deviceId;
+      option.textContent = camera.label;
+      cameraSelect.appendChild(option);
+    });
+    
+    // カメラ選択のイベントリスナー
+    cameraSelect.addEventListener('change', async (e) => {
+      e.stopPropagation();
+      const selectedDeviceId = e.target.value || null;
+      console.log('Switching to camera:', selectedDeviceId);
+      await startCamera(selectedDeviceId);
+      
+      // 選択されたカメラを保存
+      if (selectedDeviceId) {
+        localStorage.setItem('selectedCameraId', selectedDeviceId);
+      } else {
+        localStorage.removeItem('selectedCameraId');
+      }
+    });
+    
+    cameraSelect.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+    });
+    
+    // 保存されたカメラ設定を復元
+    const savedCameraId = localStorage.getItem('selectedCameraId');
+    if (savedCameraId && availableCameras.some(camera => camera.deviceId === savedCameraId)) {
+      cameraSelect.value = savedCameraId;
+      console.log('Restoring saved camera:', savedCameraId);
+    }
+    
+  } catch (error) {
+    console.error('Failed to initialize camera select:', error);
+    cameraSelect.innerHTML = '<option value="">カメラの取得に失敗</option>';
+  }
 }
 
 // 設定パネルの制御
@@ -544,11 +647,16 @@ function closeWindow() {
   window.electronAPI.closeWindow();
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   initializeSelfieSegmentation();
-  startCamera();
   initializeSettings();
   initializeResizeHandles();
+  
+  // カメラ選択を初期化してから、保存されたカメラまたはデフォルトカメラを開始
+  await initializeCameraSelect();
+  
+  const savedCameraId = localStorage.getItem('selectedCameraId');
+  await startCamera(savedCameraId);
   
   document.getElementById('toggle-bg').addEventListener('click', toggleBackgroundRemoval);
   document.getElementById('show-hotkeys').addEventListener('click', showHotkeysModal);
