@@ -32,12 +32,12 @@ function initializeSelfieSegmentation() {
 function onSegmentationResults(results) {
   if (!canvasElement || !canvasCtx) return;
 
-  canvasCtx.save();
+  // キャンバスを完全にクリア（透明にする）
   canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
   if (backgroundRemovalEnabled && results.segmentationMask) {
-    // 高度なセグメンテーション処理
-    processAdvancedSegmentation(results);
+    // 軽量で透明な背景除去処理
+    processTransparentSegmentation(results);
   } else {
     // 背景除去が無効の場合は通常の描画
     canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
@@ -47,8 +47,65 @@ function onSegmentationResults(results) {
       applyEffect(currentEffect);
     }
   }
+}
 
-  canvasCtx.restore();
+// 透明背景除去処理
+function processTransparentSegmentation(results) {
+  const { image, segmentationMask } = results;
+  
+  // 一時的なキャンバスでマスクを処理
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = canvasElement.width;
+  tempCanvas.height = canvasElement.height;
+  const tempCtx = tempCanvas.getContext('2d');
+  
+  // 元画像を描画
+  tempCtx.drawImage(image, 0, 0, tempCanvas.width, tempCanvas.height);
+  
+  // マスクを取得して処理
+  tempCtx.globalCompositeOperation = 'destination-in';
+  
+  // マスクを一時キャンバスに描画
+  const maskCanvas = document.createElement('canvas');
+  maskCanvas.width = canvasElement.width;
+  maskCanvas.height = canvasElement.height;
+  const maskCtx = maskCanvas.getContext('2d');
+  
+  maskCtx.drawImage(segmentationMask, 0, 0, maskCanvas.width, maskCanvas.height);
+  const maskData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+  const data = maskData.data;
+  
+  // 閾値に基づいて二値化（完全透明にする）
+  for (let i = 0; i < data.length; i += 4) {
+    const alpha = data[i] / 255; // マスク値
+    if (alpha > segmentationThreshold) {
+      // 人物として検出 - 不透明
+      data[i] = 255;
+      data[i + 1] = 255;
+      data[i + 2] = 255;
+      data[i + 3] = 255;
+    } else {
+      // 背景として検出 - 完全透明
+      data[i] = 0;
+      data[i + 1] = 0;
+      data[i + 2] = 0;
+      data[i + 3] = 0;
+    }
+  }
+  
+  maskCtx.putImageData(maskData, 0, 0);
+  
+  // マスクを適用
+  tempCtx.drawImage(maskCanvas, 0, 0);
+  tempCtx.globalCompositeOperation = 'source-over';
+  
+  // 最終結果をメインキャンバスに描画
+  canvasCtx.drawImage(tempCanvas, 0, 0);
+  
+  // エフェクトを適用
+  if (currentEffect !== 'none') {
+    applyEffect(currentEffect);
+  }
 }
 
 // 高度なセグメンテーション処理
@@ -555,6 +612,7 @@ function initializeResizeHandles() {
   let startY = 0;
   let startWidth = 0;
   let startHeight = 0;
+  let aspectRatio = 4/3; // デフォルトアスペクト比
   
   resizeHandles.forEach(handle => {
     const direction = handle.dataset.direction;
@@ -571,6 +629,7 @@ function initializeResizeHandles() {
       const rect = container.getBoundingClientRect();
       startWidth = rect.width;
       startHeight = rect.height;
+      aspectRatio = startWidth / startHeight; // 現在のアスペクト比を記録
       
       document.body.style.cursor = getComputedStyle(handle).cursor;
       document.body.style.userSelect = 'none';
@@ -587,32 +646,47 @@ function initializeResizeHandles() {
     const deltaX = e.screenX - startX;
     const deltaY = e.screenY - startY;
     
-    let newWidth = startWidth;
-    let newHeight = startHeight;
+    let newWidth, newHeight;
     
-    // 方向に応じてサイズを計算
+    // 方向に応じてサイズを計算（アスペクト比維持）
     switch (currentDirection) {
       case 'nw':
+        // 左上: X軸の変化を基準にアスペクト比を維持
         newWidth = Math.max(160, startWidth - deltaX);
-        newHeight = Math.max(120, startHeight - deltaY);
+        newHeight = newWidth / aspectRatio;
         break;
       case 'ne':
+        // 右上: X軸の変化を基準にアスペクト比を維持
         newWidth = Math.max(160, startWidth + deltaX);
-        newHeight = Math.max(120, startHeight - deltaY);
+        newHeight = newWidth / aspectRatio;
         break;
       case 'sw':
+        // 左下: X軸の変化を基準にアスペクト比を維持
         newWidth = Math.max(160, startWidth - deltaX);
-        newHeight = Math.max(120, startHeight + deltaY);
+        newHeight = newWidth / aspectRatio;
         break;
       case 'se':
+        // 右下: X軸の変化を基準にアスペクト比を維持
         newWidth = Math.max(160, startWidth + deltaX);
-        newHeight = Math.max(120, startHeight + deltaY);
+        newHeight = newWidth / aspectRatio;
         break;
     }
     
+    // 最小サイズ制限
+    if (newHeight < 120) {
+      newHeight = 120;
+      newWidth = newHeight * aspectRatio;
+    }
+    
     // 最大サイズ制限
-    newWidth = Math.min(1200, newWidth);
-    newHeight = Math.min(900, newHeight);
+    if (newWidth > 1200) {
+      newWidth = 1200;
+      newHeight = newWidth / aspectRatio;
+    }
+    if (newHeight > 900) {
+      newHeight = 900;
+      newWidth = newHeight * aspectRatio;
+    }
     
     // コンテナサイズを直接変更
     container.style.width = `${newWidth}px`;
