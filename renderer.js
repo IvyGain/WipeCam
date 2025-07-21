@@ -75,15 +75,16 @@ function processTransparentSegmentation(results) {
   const maskData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
   const data = maskData.data;
   
-  // 閾値に基づいて二値化（完全透明にする）
+  // 閾値に基づいてマスクを処理
   for (let i = 0; i < data.length; i += 4) {
     const alpha = data[i] / 255; // マスク値
     if (alpha > segmentationThreshold) {
-      // 人物として検出 - 不透明
-      data[i] = 255;
-      data[i + 1] = 255;
-      data[i + 2] = 255;
-      data[i + 3] = 255;
+      // 人物として検出
+      const strength = Math.min(255, alpha * 255);
+      data[i] = strength;
+      data[i + 1] = strength;
+      data[i + 2] = strength;
+      data[i + 3] = strength;
     } else {
       // 背景として検出 - 完全透明
       data[i] = 0;
@@ -91,6 +92,11 @@ function processTransparentSegmentation(results) {
       data[i + 2] = 0;
       data[i + 3] = 0;
     }
+  }
+  
+  // 境界ぼかし処理を追加
+  if (blurAmount > 0) {
+    applyBlurToMask(maskData, maskCanvas.width, maskCanvas.height, blurAmount);
   }
   
   maskCtx.putImageData(maskData, 0, 0);
@@ -105,6 +111,48 @@ function processTransparentSegmentation(results) {
   // エフェクトを適用
   if (currentEffect !== 'none') {
     applyEffect(currentEffect);
+  }
+}
+
+// マスクにぼかし処理を適用
+function applyBlurToMask(imageData, width, height, radius) {
+  if (radius === 0) return;
+  
+  const data = imageData.data;
+  const output = new Uint8ClampedArray(data);
+  
+  // 簡単なボックスブラー
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let sum = 0;
+      let count = 0;
+      
+      // 周囲のピクセルの平均を計算
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          const ny = y + dy;
+          const nx = x + dx;
+          
+          if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
+            const idx = (ny * width + nx) * 4;
+            sum += data[idx];
+            count++;
+          }
+        }
+      }
+      
+      const idx = (y * width + x) * 4;
+      const avg = count > 0 ? Math.round(sum / count) : 0;
+      output[idx] = avg;
+      output[idx + 1] = avg;
+      output[idx + 2] = avg;
+      output[idx + 3] = avg;
+    }
+  }
+  
+  // 結果をコピー
+  for (let i = 0; i < data.length; i++) {
+    data[i] = output[i];
   }
 }
 
@@ -539,6 +587,7 @@ function initializeSettings() {
       e.stopPropagation();
       segmentationThreshold = parseFloat(e.target.value);
       if (thresholdValue) thresholdValue.textContent = segmentationThreshold.toFixed(1);
+      console.log('Threshold changed to:', segmentationThreshold);
     });
     
     // マウスイベントでもドラッグを防止
@@ -552,6 +601,7 @@ function initializeSettings() {
       e.stopPropagation();
       blurAmount = parseInt(e.target.value);
       if (blurValue) blurValue.textContent = `${blurAmount}px`;
+      console.log('Blur amount changed to:', blurAmount);
     });
     
     // マウスイベントでもドラッグを防止

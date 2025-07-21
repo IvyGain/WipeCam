@@ -1,26 +1,86 @@
 {
   "name": "WipeCam",
   "version": "1.0.0",
-  "description": "",
+  "description": "AI-powered background removal camera app with real-time transparent segmentation",
   "main": "main.js",
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "dev": "electron .",
-    "check": "pnpm typecheck && pnpm test"
+    "check": "pnpm typecheck && pnpm test",
+    "build": "electron-builder",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build:linux": "electron-builder --linux",
+    "dist": "electron-builder --publish=never"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": ["camera", "background-removal", "ai", "mediapipe", "transparent", "recording"],
+  "author": "WipeCam",
+  "license": "MIT",
   "packageManager": "pnpm@10.13.1",
   "type": "module",
   "devDependencies": {
     "@types/node": "^24.0.15",
     "@vitest/coverage-v8": "^3.2.4",
     "electron": "^37.2.3",
+    "electron-builder": "^26.0.12",
     "jsdom": "^26.1.0",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4"
+  },
+  "build": {
+    "appId": "com.wipecam.app",
+    "productName": "WipeCam",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer.js",
+      "index.html",
+      "style.css",
+      "assets/icon.*",
+      "node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.photography",
+      "icon": "assets/icon.icns",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "entitlements": "entitlements.mac.plist",
+      "entitlementsInherit": "entitlements.mac.plist"
+    },
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "icon": "assets/icon.png",
+      "category": "Photography",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    }
   }
 }
