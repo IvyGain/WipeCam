@@ -44,29 +44,47 @@ async function initializeSelfieSegmentation() {
   });
 }
 
-// セグメンテーション結果の処理（背景色対応）
+// セグメンテーション結果の処理（背景色対応修復版）
 function onSegmentationResults(results) {
   if (!canvasElement || !canvasCtx) return;
+  
+  // macOSネイティブ処理中はスキップ
+  if (isUsingMacOSNative) {
+    console.log('🎆 Skipping MediaPipe - using macOS native processing');
+    return;
+  }
+
+  console.log('🤖 MediaPipe processing - backgroundRemovalEnabled:', backgroundRemovalEnabled, 'backgroundColor:', backgroundColor);
 
   // キャンバスをクリア
   canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
   if (backgroundRemovalEnabled && results.segmentationMask) {
-    // 背景除去処理
+    // 背景除去処理を実行
+    console.log('🎨 Applying background removal with segmentation');
     processFastSegmentation(results);
   } else {
     // 通常描画（背景色ありの場合は背景を塗りつぶし）
+    console.log('🖼️ Normal rendering with backgroundColor:', backgroundColor);
+    
     if (backgroundColor !== 'transparent') {
       canvasCtx.fillStyle = backgroundColor;
       canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+      console.log('🎨 Background filled for normal rendering');
     }
+    
     canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
   }
 }
 
-// 最速背景除去処理（背景色選択対応）
+// 最速背景除去処理（背景色選択対応修復版）
 function processFastSegmentation(results) {
   const { image, segmentationMask } = results;
+  
+  console.log('🎨 Processing with backgroundColor:', backgroundColor);
+  
+  // キャンバスをクリア
+  canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
   
   if (backgroundColor === 'transparent') {
     // 透明背景（従来通り）
@@ -76,26 +94,30 @@ function processFastSegmentation(results) {
     canvasCtx.globalCompositeOperation = 'source-over';
   } else {
     // 指定した背景色で塗りつぶし
+    console.log('🎨 Applying background color:', backgroundColor);
     
-    // 背景を指定した色で塗りつぶし
+    // Step 1: 背景を指定した色で塗りつぶし
     canvasCtx.fillStyle = backgroundColor;
     canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
     
-    // 一時キャンバスで人物部分を抽出
+    // Step 2: 一時キャンバスで人物部分を抽出
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = canvasElement.width;
     tempCanvas.height = canvasElement.height;
     const tempCtx = tempCanvas.getContext('2d');
     
-    // 元画像を描画
+    // Step 3: 元画像を一時キャンバスに描画
     tempCtx.drawImage(image, 0, 0, tempCanvas.width, tempCanvas.height);
     
-    // マスクで人物部分を切り取り
+    // Step 4: マスクで人物部分を切り取り
     tempCtx.globalCompositeOperation = 'destination-in';
     tempCtx.drawImage(segmentationMask, 0, 0, tempCanvas.width, tempCanvas.height);
+    tempCtx.globalCompositeOperation = 'source-over';
     
-    // 人物部分を背景の上に描画
+    // Step 5: 人物部分を背景の上に描画
     canvasCtx.drawImage(tempCanvas, 0, 0);
+    
+    console.log('✅ Background color applied successfully');
   }
 }
 
@@ -202,6 +224,7 @@ async function startCameraWithMacOSBackground(deviceId = null) {
     
     // ステップ4: MediaPipeを無効化して純正処理のみ使用
     console.log('🎆 Step 3: Using macOS native processing instead of MediaPipe');
+    isUsingMacOSNative = true; // macOSネイティブ処理フラグを有効化
     processVideoNative();
     
     console.log('✨ macOS background camera setup completed!');
@@ -307,20 +330,36 @@ function showErrorGuide() {
   });
 }
 
-// macOS純正背景処理用のビデオ処理
+// macOS純正背景処理用のビデオ処理（背景色対応修復版）
+let isUsingMacOSNative = false; // macOSネイティブ処理フラグ
+
 function processVideoNative() {
   if (!videoElement) return;
   
   if (videoElement.readyState === videoElement.HAVE_ENOUGH_DATA) {
-    // macOSが既に背景処理した映像をそのまま表示
+    console.log('🎆 macOS native processing with backgroundColor:', backgroundColor);
+    
+    // キャンバスをクリア
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
     
-    if (backgroundColor !== 'transparent') {
-      canvasCtx.fillStyle = backgroundColor;
-      canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+    if (backgroundRemovalEnabled) {
+      // 背景除去有効時: 背景色を適用してから人物を描画
+      if (backgroundColor !== 'transparent') {
+        canvasCtx.fillStyle = backgroundColor;
+        canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+        console.log('🎨 macOS: Background filled with', backgroundColor);
+      }
+      
+      // macOSが背景処理した映像を描画（人物部分のみ）
+      canvasCtx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+    } else {
+      // 背景除去無効時: 通常表示
+      if (backgroundColor !== 'transparent') {
+        canvasCtx.fillStyle = backgroundColor;
+        canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+      }
+      canvasCtx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
     }
-    
-    canvasCtx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
   }
   
   requestAnimationFrame(processVideoNative);
@@ -426,6 +465,7 @@ async function startCamera(deviceId = null) {
     // MediaPipeが初期化されているか確認してから処理開始
     if (selfieSegmentation) {
       console.log('Starting video processing (lightweight)...');
+      isUsingMacOSNative = false; // 通常モードではMediaPipeを使用
       processVideo();
     } else {
       throw new Error('MediaPipe not initialized');
@@ -546,7 +586,8 @@ function initializeSettings() {
       
       // 背景色を設定
       backgroundColor = btn.getAttribute('data-color');
-      console.log('Background color changed to:', backgroundColor);
+      console.log('🎨 Background color changed to:', backgroundColor);
+      console.log('🔍 Current state - backgroundRemovalEnabled:', backgroundRemovalEnabled, 'isUsingMacOSNative:', isUsingMacOSNative);
       
       // localStorageに保存
       localStorage.setItem('backgroundColor', backgroundColor);
@@ -567,7 +608,8 @@ function initializeSettings() {
       
       // 背景色を設定
       backgroundColor = e.target.value;
-      console.log('Custom background color changed to:', backgroundColor);
+      console.log('🎨 Custom background color changed to:', backgroundColor);
+      console.log('🔍 Current state - backgroundRemovalEnabled:', backgroundRemovalEnabled, 'isUsingMacOSNative:', isUsingMacOSNative);
       
       // localStorageに保存
       localStorage.setItem('backgroundColor', backgroundColor);
