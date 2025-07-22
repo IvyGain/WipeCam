@@ -12,6 +12,15 @@ let segmentationThreshold = 0.5;
 let currentEffect = 'none';
 let backgroundColor = 'transparent'; // 背景色設定
 
+// 状態管理フラグ（統合管理）
+let isUsingMacOSNative = false; // macOSネイティブ処理フラグ
+let isProcessingModeSwitch = false; // 処理モード切替中フラグ
+let isInitializing = false; // 初期化中フラグ
+
+// ウィンドウアクティブ状態管理
+let isWindowActive = false; // ウィンドウアクティブ状態
+let activeTimeout = null; // 自動非アクティブ化用タイマー
+
 // MediaPipe Selfie Segmentationの初期化（軽量版）
 async function initializeSelfieSegmentation() {
   return new Promise((resolve, reject) => {
@@ -331,7 +340,7 @@ function showErrorGuide() {
 }
 
 // macOS純正背景処理用のビデオ処理（背景色対応修復版）
-let isUsingMacOSNative = false; // macOSネイティブ処理フラグ
+// フラグは上部で統合管理
 
 function processVideoNative() {
   if (!videoElement) return;
@@ -467,6 +476,13 @@ async function startCamera(deviceId = null) {
       console.log('Starting video processing (lightweight)...');
       isUsingMacOSNative = false; // 通常モードではMediaPipeを使用
       processVideo();
+      
+      // 背景除去ボタンを有効化
+      const bgButton = document.getElementById('toggle-bg');
+      if (bgButton) {
+        bgButton.style.pointerEvents = 'auto';
+        updateBackgroundRemovalButton();
+      }
     } else {
       throw new Error('MediaPipe not initialized');
     }
@@ -488,10 +504,47 @@ async function startCamera(deviceId = null) {
   }
 }
 
+// 背景除去トグル関数（修復版）
 function toggleBackgroundRemoval() {
+  // 処理中は操作を無視
+  if (isProcessingModeSwitch || isInitializing) {
+    console.log('⚠️ Background removal toggle blocked - processing in progress');
+    return;
+  }
+  
+  // 状態を切り替え
   backgroundRemovalEnabled = !backgroundRemovalEnabled;
+  
+  console.log('🎭 Background removal toggled to:', backgroundRemovalEnabled);
+  console.log('🔍 Current processing mode - isUsingMacOSNative:', isUsingMacOSNative);
+  
+  // ボタンの視覚的フィードバックを更新
+  updateBackgroundRemovalButton();
+  
+  // localStorageに状態を保存
+  localStorage.setItem('backgroundRemovalEnabled', backgroundRemovalEnabled.toString());
+}
+
+// 背景除去ボタンの視覚更新
+function updateBackgroundRemovalButton() {
   const button = document.getElementById('toggle-bg');
-  button.style.opacity = backgroundRemovalEnabled ? '1' : '0.6';
+  if (!button) return;
+  
+  if (backgroundRemovalEnabled) {
+    button.style.opacity = '1';
+    button.style.background = 'rgba(0, 122, 255, 0.9)';
+    button.style.color = 'white';
+    button.style.transform = 'scale(1.05)';
+    button.title = '背景除去を無効化 (Ctrl+Shift+B)';
+  } else {
+    button.style.opacity = '0.6';
+    button.style.background = 'rgba(255, 255, 255, 0.9)';
+    button.style.color = '#666';
+    button.style.transform = 'scale(1)';
+    button.title = '背景除去を有効化 (Ctrl+Shift+B)';
+  }
+  
+  console.log('🔄 Background removal button updated - enabled:', backgroundRemovalEnabled);
 }
 
 // カメラドロップダウンの初期化（軽量版）
@@ -644,9 +697,19 @@ function initializeSettings() {
       e.stopPropagation();
       
       try {
+        // 処理中フラグを設定
+        isProcessingModeSwitch = true;
+        
         // ボタンをローディング状態に
         macOSBackgroundBtn.textContent = '🔄 設定中...';
         macOSBackgroundBtn.disabled = true;
+        
+        // 背景除去ボタンを一時無効化
+        const bgButton = document.getElementById('toggle-bg');
+        if (bgButton) {
+          bgButton.style.pointerEvents = 'none';
+          bgButton.style.opacity = '0.3';
+        }
         
         // macOS背景処理を有効化してカメラを再起動
         const savedCameraId = localStorage.getItem('selectedCameraId');
@@ -657,12 +720,17 @@ function initializeSettings() {
         macOSBackgroundBtn.textContent = '✨ macOS高精度処理有効';
         macOSBackgroundBtn.disabled = false;
         
-        // 背景除去も自動で有効化
+        // 背景除去を自動で有効化
         backgroundRemovalEnabled = true;
-        const bgButton = document.getElementById('toggle-bg');
+        
+        // 背景除去ボタンを有効化して更新
         if (bgButton) {
-          bgButton.style.opacity = '1';
+          bgButton.style.pointerEvents = 'auto';
+          updateBackgroundRemovalButton();
         }
+        
+        // 処理中フラグをリセット
+        isProcessingModeSwitch = false;
         
         console.log('✨ macOS background processing successfully enabled');
         
@@ -681,6 +749,16 @@ function initializeSettings() {
         macOSBackgroundBtn.classList.remove('enabled');
         macOSBackgroundBtn.textContent = '🎆 高精度背景処理を有効化';
         macOSBackgroundBtn.disabled = false;
+        
+        // 背景除去ボタンを復元
+        const bgButton = document.getElementById('toggle-bg');
+        if (bgButton) {
+          bgButton.style.pointerEvents = 'auto';
+          updateBackgroundRemovalButton();
+        }
+        
+        // 処理中フラグをリセット
+        isProcessingModeSwitch = false;
         
         // ユーザーフレンドリーなエラーメッセージ
         showErrorGuide();
@@ -843,6 +921,47 @@ function initializeResizeHandles() {
   });
 }
 
+// ウィンドウアクティブ状態管理
+function setWindowActive(active) {
+  const container = document.getElementById('container');
+  if (!container) return;
+  
+  isWindowActive = active;
+  
+  if (active) {
+    container.classList.add('active');
+    console.log('📺 Window activated - showing skeleton UI');
+    
+    // 自動非アクティブ化タイマーをリセット
+    if (activeTimeout) {
+      clearTimeout(activeTimeout);
+    }
+    
+    // 3秒後に自動で非アクティブ化
+    activeTimeout = setTimeout(() => {
+      setWindowActive(false);
+    }, 3000);
+  } else {
+    container.classList.remove('active');
+    console.log('📺 Window deactivated - hiding skeleton UI');
+    
+    if (activeTimeout) {
+      clearTimeout(activeTimeout);
+      activeTimeout = null;
+    }
+  }
+}
+
+// アクティブタイマーをリセット（ユーザー操作時）
+function resetActiveTimer() {
+  if (isWindowActive && activeTimeout) {
+    clearTimeout(activeTimeout);
+    activeTimeout = setTimeout(() => {
+      setWindowActive(false);
+    }, 3000);
+  }
+}
+
 function closeWindow() {
   if (videoElement && videoElement.srcObject) {
     const tracks = videoElement.srcObject.getTracks();
@@ -855,8 +974,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     console.log('DOM loaded, starting lightweight initialization...');
     
+    isInitializing = true; // 初期化中フラグを設定
+    
     initializeSettings();
     initializeResizeHandles();
+    
+    // 保存された背景除去状態を復元
+    const savedBackgroundRemoval = localStorage.getItem('backgroundRemovalEnabled');
+    if (savedBackgroundRemoval === 'true') {
+      backgroundRemovalEnabled = true;
+      console.log('💾 Restored background removal state:', backgroundRemovalEnabled);
+    }
     
     // MediaPipeを初期化して待機（軽量版）
     console.log('Initializing MediaPipe (lightweight)...');
@@ -872,22 +1000,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('Starting camera (lightweight) with saved ID:', savedCameraId);
     await startCamera(savedCameraId);
     
+    // 初期化完了後の状態更新
+    updateBackgroundRemovalButton();
+    isInitializing = false; // 初期化完了
+    
     console.log('All initialization complete (lightweight)');
     
   } catch (error) {
     console.error('Initialization failed (lightweight):', error);
+    isInitializing = false; // エラー時もフラグをリセット
     alert('アプリの初期化に失敗しました: ' + error.message);
   }
   
-  document.getElementById('toggle-bg').addEventListener('click', toggleBackgroundRemoval);
-  document.getElementById('show-hotkeys').addEventListener('click', showHotkeysModal);
-  document.getElementById('close-modal').addEventListener('click', hideHotkeysModal);
-  document.getElementById('close').addEventListener('click', closeWindow);
+  document.getElementById('toggle-bg').addEventListener('click', (e) => {
+    resetActiveTimer();
+    toggleBackgroundRemoval();
+  });
+  
+  document.getElementById('show-hotkeys').addEventListener('click', (e) => {
+    resetActiveTimer();
+    showHotkeysModal();
+  });
+  
+  document.getElementById('close-modal').addEventListener('click', (e) => {
+    resetActiveTimer();
+    hideHotkeysModal();
+  });
+  
+  document.getElementById('close').addEventListener('click', (e) => {
+    resetActiveTimer();
+    closeWindow();
+  });
   
   // 設定パネルの閉じるボタン
   const closeSettingsBtn = document.getElementById('close-settings');
   if (closeSettingsBtn) {
-    closeSettingsBtn.addEventListener('click', () => {
+    closeSettingsBtn.addEventListener('click', (e) => {
+      resetActiveTimer();
       const panel = document.getElementById('settings-panel');
       if (panel) {
         panel.classList.add('hidden');
@@ -898,7 +1047,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Handle settings button (if exists)
   const settingsBtn = document.getElementById('settings');
   if (settingsBtn) {
-    settingsBtn.addEventListener('click', () => {
+    settingsBtn.addEventListener('click', (e) => {
+      resetActiveTimer();
       const panel = document.getElementById('settings-panel');
       if (panel) {
         panel.classList.toggle('hidden');
@@ -908,6 +1058,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // IPC listeners for hotkey actions
   window.electronAPI.onToggleBackground(() => {
+    console.log('⌨️ Hotkey triggered for background removal toggle');
     toggleBackgroundRemoval();
   });
   
@@ -927,6 +1078,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   const container = document.getElementById('container');
   
+  // ウィンドウクリックでアクティブ化
+  container.addEventListener('click', (e) => {
+    console.log('📺 Container clicked - activating window');
+    setWindowActive(true);
+  });
+  
   container.addEventListener('mousedown', (e) => {
     // リサイズハンドル、ボタン、設定パネル内の要素の場合はドラッグ無効
     if (e.target.tagName === 'BUTTON' || 
@@ -936,6 +1093,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         e.target.tagName === 'INPUT' ||
         e.target.tagName === 'SELECT' ||
         e.target.tagName === 'LABEL') return;
+    
+    // ウィンドウをアクティブ化
+    setWindowActive(true);
     
     initialX = e.clientX;
     initialY = e.clientY;

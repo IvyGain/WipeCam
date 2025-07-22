@@ -13,8 +13,23 @@ body {
   background: transparent;
   border-radius: 12px;
   overflow: hidden;
-  transition: width 0.3s ease, height 0.3s ease;
+  transition: all 0.3s ease;
   -webkit-app-region: drag;
+}
+
+/* アクティブ時のスケルトンUI */
+#container.active {
+  border: 2px solid rgba(0, 122, 255, 0.6);
+  box-shadow: 0 0 0 1px rgba(0, 122, 255, 0.2),
+              0 4px 20px rgba(0, 122, 255, 0.15);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+/* 非アクティブ時は完全に透明 */
+#container:not(.active) {
+  border: none;
+  box-shadow: none;
+  background: transparent;
 }
 
 #video {
@@ -40,12 +55,15 @@ body {
   display: flex;
   gap: 8px;
   opacity: 0;
-  transition: opacity 0.2s ease;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
   -webkit-app-region: no-drag;
 }
 
-#container:hover #controls {
+/* ホバー無効化 - アクティブ時のみ表示 */
+#container.active #controls {
   opacity: 1;
+  visibility: visible;
 }
 
 button {
@@ -139,57 +157,80 @@ button:active {
   font-size: 14px;
 }
 
-/* Resize handles */
+/* Resize handles - 改善版 */
 .resize-handle {
   position: absolute;
   z-index: 1000;
   -webkit-app-region: no-drag;
-  background: rgba(255, 255, 255, 0.1);
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
+  background: rgba(0, 122, 255, 0.2);
+  border: 2px solid rgba(0, 122, 255, 0.4);
+  border-radius: 6px;
   opacity: 0;
-  transition: opacity 0.2s ease, background 0.2s ease;
+  visibility: hidden;
+  transition: all 0.2s ease;
+}
+
+/* アクティブ時のみリサイズハンドル表示 */
+#container.active .resize-handle {
+  opacity: 0.7;
+  visibility: visible;
 }
 
 .resize-handle.nw {
-  top: -10px;
-  left: -10px;
-  width: 20px;
-  height: 20px;
+  top: -12px;
+  left: -12px;
+  width: 28px;
+  height: 28px;
   cursor: nw-resize;
 }
 
 .resize-handle.ne {
-  top: -10px;
-  right: -10px;
-  width: 20px;
-  height: 20px;
+  top: -12px;
+  right: -12px;
+  width: 28px;
+  height: 28px;
   cursor: ne-resize;
 }
 
+/* 左下ハンドルを強化 */
 .resize-handle.sw {
-  bottom: -10px;
-  left: -10px;
-  width: 20px;
-  height: 20px;
+  bottom: -12px;
+  left: -12px;
+  width: 32px;
+  height: 32px;
   cursor: sw-resize;
+  background: rgba(0, 122, 255, 0.3);
+  border: 3px solid rgba(0, 122, 255, 0.6);
 }
 
+/* 右下ハンドルを最大強化 */
 .resize-handle.se {
-  bottom: -10px;
-  right: -10px;
-  width: 20px;
-  height: 20px;
+  bottom: -12px;
+  right: -12px;
+  width: 36px;
+  height: 36px;
   cursor: se-resize;
-}
-
-#container:hover .resize-handle {
-  opacity: 1;
+  background: rgba(0, 122, 255, 0.4);
+  border: 3px solid rgba(0, 122, 255, 0.8);
+  border-radius: 8px;
 }
 
 .resize-handle:hover {
-  background: rgba(255, 255, 255, 0.3);
-  border-color: rgba(255, 255, 255, 0.6);
+  background: rgba(0, 122, 255, 0.5) !important;
+  border-color: rgba(0, 122, 255, 0.9) !important;
+  transform: scale(1.1);
+}
+
+.resize-handle.se:hover {
+  background: rgba(0, 122, 255, 0.6) !important;
+  border-color: rgba(0, 122, 255, 1) !important;
+  transform: scale(1.15);
+}
+
+.resize-handle.sw:hover {
+  background: rgba(0, 122, 255, 0.5) !important;
+  border-color: rgba(0, 122, 255, 0.9) !important;
+  transform: scale(1.1);
 }
 
 .settings-panel {
