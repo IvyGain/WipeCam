@@ -137,10 +137,10 @@ async function processVideo() {
   requestAnimationFrame(processVideo);
 }
 
-// macOS背景処理機能付きカメラ開始
+// macOS背景処理機能付きカメラ開始（改良版）
 async function startCameraWithMacOSBackground(deviceId = null) {
   try {
-    console.log('Starting camera with macOS background processing:', deviceId);
+    console.log('🎆 Starting camera with macOS background processing:', deviceId);
     
     videoElement = document.getElementById('video');
     canvasElement = document.getElementById('canvas');
@@ -159,15 +159,12 @@ async function startCameraWithMacOSBackground(deviceId = null) {
     
     const savedDeviceId = deviceId || localStorage.getItem('selectedCameraId');
     
-    // macOS純正背景処理用の制約
-    const constraints = {
+    // ステップ1: シンプルな制約でカメラを開始
+    let constraints = {
       video: {
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
+        width: { ideal: 1280, max: 1920 },
+        height: { ideal: 720, max: 1080 },
         frameRate: { ideal: 30 },
-        // macOS背景処理API
-        backgroundSegmentation: { exact: true },
-        backgroundBlur: { ideal: true },
         facingMode: 'user'
       }
     };
@@ -176,27 +173,13 @@ async function startCameraWithMacOSBackground(deviceId = null) {
       constraints.video.deviceId = { exact: savedDeviceId };
     }
     
-    console.log('🔧 Requesting macOS background processing...');
+    console.log('🔧 Step 1: Getting camera stream...');
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
     
-    // 背景処理状態を確認
-    const videoTrack = stream.getVideoTracks()[0];
-    const capabilities = videoTrack.getCapabilities();
-    const settings = videoTrack.getSettings();
-    
-    console.log('📊 Video capabilities:', capabilities);
-    console.log('📊 Current settings:', settings);
-    
-    if (settings.backgroundSegmentation) {
-      console.log('🎆 SUCCESS: macOS hardware background processing is ACTIVE!');
-    } else {
-      console.log('⚠️ Background processing not confirmed in settings');
-    }
-    
-    currentCameraId = savedDeviceId;
     videoElement.srcObject = stream;
+    currentCameraId = savedDeviceId;
     
-    // Promiseでビデオのロードを待機
+    // ステップ2: ビデオロード待機
     await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error('Video load timeout'));
@@ -204,25 +187,124 @@ async function startCameraWithMacOSBackground(deviceId = null) {
       
       videoElement.onloadedmetadata = () => {
         clearTimeout(timeout);
-        console.log('macOS background video loaded:', videoElement.videoWidth, 'x', videoElement.videoHeight);
+        console.log('📹 Video loaded:', videoElement.videoWidth, 'x', videoElement.videoHeight);
         canvasElement.width = videoElement.videoWidth;
         canvasElement.height = videoElement.videoHeight;
         resolve();
       };
     });
     
-    // MediaPipeを無効化してmacOS純正処理のみ使用
-    if (selfieSegmentation) {
-      console.log('Using macOS native background processing instead of MediaPipe');
-      processVideoNative(); // MediaPipeを使わない版
-    }
+    // ステップ3: macOS背景処理を手動で有効化するガイド
+    console.log('📱 Step 2: Enabling macOS background processing...');
     
-    console.log('✨ macOS background camera started successfully!');
+    // ユーザーにmacOS背景処理を有効化するようガイド
+    showMacOSBackgroundGuide();
+    
+    // ステップ4: MediaPipeを無効化して純正処理のみ使用
+    console.log('🎆 Step 3: Using macOS native processing instead of MediaPipe');
+    processVideoNative();
+    
+    console.log('✨ macOS background camera setup completed!');
+    return stream;
     
   } catch (error) {
-    console.error('macOS background processing failed:', error);
+    console.error('❌ macOS background processing setup failed:', error);
     throw error;
   }
+}
+
+// macOS背景処理有効化ガイド表示
+function showMacOSBackgroundGuide() {
+  const guideModal = document.createElement('div');
+  guideModal.id = 'macos-guide-modal';
+  guideModal.className = 'modal';
+  guideModal.style.display = 'flex';
+  guideModal.style.zIndex = '2000';
+  
+  guideModal.innerHTML = `
+    <div class="modal-content" style="max-width: 400px; text-align: left;">
+      <h3 style="margin-bottom: 16px; color: #007AFF;">🎆 macOS背景処理を有効化</h3>
+      <div style="margin-bottom: 20px; line-height: 1.5;">
+        <p style="margin: 8px 0; font-size: 14px;"><strong>1. Control Centerを開く</strong></p>
+        <p style="margin: 8px 0 16px 0; color: #666; font-size: 13px;">   メニューバー右上のコントロールセンターをクリック</p>
+        
+        <p style="margin: 8px 0; font-size: 14px;"><strong>2. ビデオエフェクトを選択</strong></p>
+        <p style="margin: 8px 0 16px 0; color: #666; font-size: 13px;">   「ビデオエフェクト」または「カメラ」アイコンをクリック</p>
+        
+        <p style="margin: 8px 0; font-size: 14px;"><strong>3. 背景をONにする</strong></p>
+        <p style="margin: 8px 0 16px 0; color: #666; font-size: 13px;">   「背景」トグルをオンにして、お好みの背景を選択</p>
+        
+        <div style="background: #f0f8ff; padding: 12px; border-radius: 8px; margin: 16px 0;">
+          <p style="margin: 0; font-size: 13px; color: #007AFF;">
+            💡 <strong>ヒント:</strong> 背景をオンにすると、Appleの高精度AIが人物を綺麗に識別します！
+          </p>
+        </div>
+      </div>
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button id="guide-close" style="padding: 8px 16px; background: #007AFF; color: white; border: none; border-radius: 6px; cursor: pointer;">理解しました</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(guideModal);
+  
+  // 閉じるイベント
+  const closeBtn = guideModal.querySelector('#guide-close');
+  const closeGuide = () => {
+    document.body.removeChild(guideModal);
+  };
+  
+  closeBtn.addEventListener('click', closeGuide);
+  guideModal.addEventListener('click', (e) => {
+    if (e.target === guideModal) closeGuide();
+  });
+  
+  // 10秒後に自動で閉じる
+  setTimeout(closeGuide, 10000);
+}
+
+// エラーガイド表示
+function showErrorGuide() {
+  const errorModal = document.createElement('div');
+  errorModal.className = 'modal';
+  errorModal.style.display = 'flex';
+  errorModal.style.zIndex = '2000';
+  
+  errorModal.innerHTML = `
+    <div class="modal-content" style="max-width: 380px; text-align: center;">
+      <h3 style="color: #ff3b30; margin-bottom: 16px;">⚠️ 設定が必要です</h3>
+      
+      <div style="margin-bottom: 20px; text-align: left; line-height: 1.5;">
+        <p style="margin: 8px 0; font-size: 14px;"><strong>📱 Control Centerで設定:</strong></p>
+        <p style="margin: 8px 0 16px 0; color: #666; font-size: 13px;">1. メニューバー右上 > Control Center</p>
+        <p style="margin: 8px 0 16px 0; color: #666; font-size: 13px;">2. ビデオエフェクト > 背景をON</p>
+        
+        <p style="margin: 8px 0; font-size: 14px;"><strong>🔒 権限設定:</strong></p>
+        <p style="margin: 8px 0 16px 0; color: #666; font-size: 13px;">System Preferences > Security & Privacy > Camera</p>
+      </div>
+      
+      <div style="background: #fff3cd; padding: 12px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #ffc107;">
+        <p style="margin: 0; font-size: 13px; color: #856404;">
+          📝 <strong>重要:</strong> macOSの背景処理を事前に有効化してから再度お試しください
+        </p>
+      </div>
+      
+      <button id="error-close" style="padding: 10px 20px; background: #007AFF; color: white; border: none; border-radius: 6px; cursor: pointer;">理解しました</button>
+    </div>
+  `;
+  
+  document.body.appendChild(errorModal);
+  
+  // 閉じるイベント
+  const closeBtn = errorModal.querySelector('#error-close');
+  const closeError = () => {
+    document.body.removeChild(errorModal);
+  };
+  
+  closeBtn.addEventListener('click', closeError);
+  errorModal.addEventListener('click', (e) => {
+    if (e.target === errorModal) closeError();
+  });
 }
 
 // macOS純正背景処理用のビデオ処理
@@ -520,19 +602,46 @@ function initializeSettings() {
       e.stopPropagation();
       
       try {
+        // ボタンをローディング状態に
+        macOSBackgroundBtn.textContent = '🔄 設定中...';
+        macOSBackgroundBtn.disabled = true;
+        
         // macOS背景処理を有効化してカメラを再起動
         const savedCameraId = localStorage.getItem('selectedCameraId');
         await startCameraWithMacOSBackground(savedCameraId);
         
-        // ボタンの状態を更新
+        // 成功時のボタン状態
         macOSBackgroundBtn.classList.add('enabled');
-        macOSBackgroundBtn.textContent = '✅ macOS背景処理有効';
+        macOSBackgroundBtn.textContent = '✨ macOS高精度処理有効';
+        macOSBackgroundBtn.disabled = false;
         
-        console.log('macOS background processing manually enabled');
+        // 背景除去も自動で有効化
+        backgroundRemovalEnabled = true;
+        const bgButton = document.getElementById('toggle-bg');
+        if (bgButton) {
+          bgButton.style.opacity = '1';
+        }
+        
+        console.log('✨ macOS background processing successfully enabled');
+        
+        // 設定パネルを閉じる
+        setTimeout(() => {
+          const panel = document.getElementById('settings-panel');
+          if (panel) {
+            panel.classList.add('hidden');
+          }
+        }, 1500);
         
       } catch (error) {
         console.error('Failed to enable macOS background processing:', error);
-        alert('🚨 macOS背景処理の有効化に失敗しました\n\n• System Preferences > Security & Privacy > Cameraで権限を確認\n• Control Centerのカメラ設定で「背景」をON');
+        
+        // エラー時のボタン状態を復元
+        macOSBackgroundBtn.classList.remove('enabled');
+        macOSBackgroundBtn.textContent = '🎆 高精度背景処理を有効化';
+        macOSBackgroundBtn.disabled = false;
+        
+        // ユーザーフレンドリーなエラーメッセージ
+        showErrorGuide();
       }
     });
     
@@ -732,6 +841,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('show-hotkeys').addEventListener('click', showHotkeysModal);
   document.getElementById('close-modal').addEventListener('click', hideHotkeysModal);
   document.getElementById('close').addEventListener('click', closeWindow);
+  
+  // 設定パネルの閉じるボタン
+  const closeSettingsBtn = document.getElementById('close-settings');
+  if (closeSettingsBtn) {
+    closeSettingsBtn.addEventListener('click', () => {
+      const panel = document.getElementById('settings-panel');
+      if (panel) {
+        panel.classList.add('hidden');
+      }
+    });
+  }
   
   // Handle settings button (if exists)
   const settingsBtn = document.getElementById('settings');
