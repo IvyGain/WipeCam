@@ -340,3 +340,41 @@ button:active {
   border: none;
   border-radius: 4px;
 }
+
+/* macOS背景処理ボタン */
+.feature-btn {
+  width: 100%;
+  height: 36px;
+  background: linear-gradient(135deg, #007AFF, #5AC8FA);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
+}
+
+.feature-btn:hover {
+  background: linear-gradient(135deg, #0056b3, #4A9EE7);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4);
+}
+
+.feature-btn:active {
+  transform: translateY(0);
+}
+
+.feature-btn.enabled {
+  background: linear-gradient(135deg, #34C759, #30D158);
+  box-shadow: 0 2px 8px rgba(52, 199, 89, 0.3);
+}
+
+.setting-group small {
+  display: block;
+  font-size: 10px;
+  color: #666;
+  margin-top: 4px;
+  line-height: 1.2;
+}

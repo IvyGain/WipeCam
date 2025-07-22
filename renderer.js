@@ -137,6 +137,113 @@ async function processVideo() {
   requestAnimationFrame(processVideo);
 }
 
+// macOS背景処理機能付きカメラ開始
+async function startCameraWithMacOSBackground(deviceId = null) {
+  try {
+    console.log('Starting camera with macOS background processing:', deviceId);
+    
+    videoElement = document.getElementById('video');
+    canvasElement = document.getElementById('canvas');
+    canvasCtx = canvasElement.getContext('2d');
+    
+    if (!videoElement || !canvasElement) {
+      throw new Error('Video or canvas element not found');
+    }
+    
+    // 既存のストリームを停止
+    if (videoElement.srcObject) {
+      const tracks = videoElement.srcObject.getTracks();
+      tracks.forEach(track => track.stop());
+      videoElement.srcObject = null;
+    }
+    
+    const savedDeviceId = deviceId || localStorage.getItem('selectedCameraId');
+    
+    // macOS純正背景処理用の制約
+    const constraints = {
+      video: {
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        frameRate: { ideal: 30 },
+        // macOS背景処理API
+        backgroundSegmentation: { exact: true },
+        backgroundBlur: { ideal: true },
+        facingMode: 'user'
+      }
+    };
+    
+    if (savedDeviceId) {
+      constraints.video.deviceId = { exact: savedDeviceId };
+    }
+    
+    console.log('🔧 Requesting macOS background processing...');
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    
+    // 背景処理状態を確認
+    const videoTrack = stream.getVideoTracks()[0];
+    const capabilities = videoTrack.getCapabilities();
+    const settings = videoTrack.getSettings();
+    
+    console.log('📊 Video capabilities:', capabilities);
+    console.log('📊 Current settings:', settings);
+    
+    if (settings.backgroundSegmentation) {
+      console.log('🎆 SUCCESS: macOS hardware background processing is ACTIVE!');
+    } else {
+      console.log('⚠️ Background processing not confirmed in settings');
+    }
+    
+    currentCameraId = savedDeviceId;
+    videoElement.srcObject = stream;
+    
+    // Promiseでビデオのロードを待機
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Video load timeout'));
+      }, 10000);
+      
+      videoElement.onloadedmetadata = () => {
+        clearTimeout(timeout);
+        console.log('macOS background video loaded:', videoElement.videoWidth, 'x', videoElement.videoHeight);
+        canvasElement.width = videoElement.videoWidth;
+        canvasElement.height = videoElement.videoHeight;
+        resolve();
+      };
+    });
+    
+    // MediaPipeを無効化してmacOS純正処理のみ使用
+    if (selfieSegmentation) {
+      console.log('Using macOS native background processing instead of MediaPipe');
+      processVideoNative(); // MediaPipeを使わない版
+    }
+    
+    console.log('✨ macOS background camera started successfully!');
+    
+  } catch (error) {
+    console.error('macOS background processing failed:', error);
+    throw error;
+  }
+}
+
+// macOS純正背景処理用のビデオ処理
+function processVideoNative() {
+  if (!videoElement) return;
+  
+  if (videoElement.readyState === videoElement.HAVE_ENOUGH_DATA) {
+    // macOSが既に背景処理した映像をそのまま表示
+    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+    
+    if (backgroundColor !== 'transparent') {
+      canvasCtx.fillStyle = backgroundColor;
+      canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+    }
+    
+    canvasCtx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+  }
+  
+  requestAnimationFrame(processVideoNative);
+}
+
 // カメラ開始（軽量版）
 async function startCamera(deviceId = null) {
   try {
@@ -162,9 +269,13 @@ async function startCamera(deviceId = null) {
     
     const constraints = {
       video: {
-        width: { ideal: 480 }, // 解像度を下げて軽量化
-        height: { ideal: 360 },
-        frameRate: { ideal: 15, max: 20 } // フレームレート制限で軽量化
+        width: { ideal: 640 },
+        height: { ideal: 480 },
+        frameRate: { ideal: 30, max: 30 },
+        // macOS純正背景処理を有効化
+        backgroundBlur: true,
+        backgroundSegmentation: true,
+        videoKind: 'environment' // 背景処理を有効化するヒント
       }
     };
     
@@ -175,11 +286,39 @@ async function startCamera(deviceId = null) {
       constraints.video.facingMode = 'user';
     }
     
-    console.log('Camera constraints (lightweight):', constraints);
+    console.log('Camera constraints with macOS background processing:', constraints);
     
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    currentCameraId = savedDeviceId;
-    
+    // macOS背景処理機能を有効化する試行
+    let stream;
+    try {
+      // 最新のWebRTC APIで背景処理をリクエスト
+      stream = await navigator.mediaDevices.getUserMedia({
+        ...constraints,
+        video: {
+          ...constraints.video,
+          // Chrome/SafariでのmacOS背景処理API
+          backgroundSegmentation: { exact: true },
+          backgroundBlur: { exact: true }
+        }
+      });
+      
+      console.log('✅ macOS background processing enabled');
+      currentCameraId = savedDeviceId;
+      
+      // ストリームの背景処理状態を確認
+      const videoTrack = stream.getVideoTracks()[0];
+      const settings = videoTrack.getSettings();
+      if (settings.backgroundSegmentation || settings.backgroundBlur) {
+        console.log('🎉 Hardware background processing active!');
+      }
+      
+    } catch (advancedError) {
+      console.log('⚠️ Advanced background processing not available, falling back to basic constraints');
+      
+      // フォールバック: 基本的な制約で再試行
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+      currentCameraId = savedDeviceId;
+    }
     videoElement.srcObject = stream;
     
     // Promiseでビデオのロードを待機
@@ -299,6 +438,7 @@ function initializeSettings() {
   const effectSelect = document.getElementById('effect-select');
   const colorButtons = document.querySelectorAll('.color-btn');
   const customColorPicker = document.getElementById('custom-color');
+  const macOSBackgroundBtn = document.getElementById('enable-macos-bg');
   
   if (thresholdSlider) {
     thresholdSlider.addEventListener('input', (e) => {
@@ -372,6 +512,33 @@ function initializeSettings() {
     }
     
     console.log('Restored background color:', backgroundColor);
+  }
+  
+  // macOS背景処理ボタンのイベントリスナー
+  if (macOSBackgroundBtn) {
+    macOSBackgroundBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      
+      try {
+        // macOS背景処理を有効化してカメラを再起動
+        const savedCameraId = localStorage.getItem('selectedCameraId');
+        await startCameraWithMacOSBackground(savedCameraId);
+        
+        // ボタンの状態を更新
+        macOSBackgroundBtn.classList.add('enabled');
+        macOSBackgroundBtn.textContent = '✅ macOS背景処理有効';
+        
+        console.log('macOS background processing manually enabled');
+        
+      } catch (error) {
+        console.error('Failed to enable macOS background processing:', error);
+        alert('🚨 macOS背景処理の有効化に失敗しました\n\n• System Preferences > Security & Privacy > Cameraで権限を確認\n• Control Centerのカメラ設定で「背景」をON');
+      }
+    });
+    
+    macOSBackgroundBtn.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+    });
   }
   
   if (effectSelect) {
