@@ -7,427 +7,99 @@ let selfieSegmentation = null;
 let availableCameras = [];
 let currentCameraId = null;
 
-// 設定値
+// 設定値（シンプル化）
 let segmentationThreshold = 0.5;
-let blurAmount = 2;
 let currentEffect = 'none';
+let backgroundColor = 'transparent'; // 背景色設定
 
-// MediaPipe Selfie Segmentationの初期化
-function initializeSelfieSegmentation() {
-  selfieSegmentation = new SelfieSegmentation({
-    locateFile: (file) => {
-      return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`;
+// MediaPipe Selfie Segmentationの初期化（軽量版）
+async function initializeSelfieSegmentation() {
+  return new Promise((resolve, reject) => {
+    try {
+      console.log('Initializing MediaPipe (lightweight)...');
+      
+      selfieSegmentation = new SelfieSegmentation({
+        locateFile: (file) => {
+          return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`;
+        }
+      });
+
+      selfieSegmentation.setOptions({
+        modelSelection: 0, // 軽量モデル
+        selfieMode: true,
+      });
+
+      selfieSegmentation.onResults(onSegmentationResults);
+      
+      // 初期化完了を待つ
+      setTimeout(() => {
+        console.log('MediaPipe initialized successfully (lightweight)');
+        resolve();
+      }, 1000); // 軽量化のため待機時間短縮
+      
+    } catch (error) {
+      console.error('Failed to initialize MediaPipe:', error);
+      reject(error);
     }
   });
-
-  selfieSegmentation.setOptions({
-    modelSelection: 1, // 0: general, 1: landscape
-    selfieMode: true,
-  });
-
-  selfieSegmentation.onResults(onSegmentationResults);
 }
 
-// セグメンテーション結果の処理
+// セグメンテーション結果の処理（背景色対応）
 function onSegmentationResults(results) {
   if (!canvasElement || !canvasCtx) return;
 
-  // キャンバスを完全にクリア（透明にする）
+  // キャンバスをクリア
   canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
   if (backgroundRemovalEnabled && results.segmentationMask) {
-    // 軽量で透明な背景除去処理
-    processTransparentSegmentation(results);
+    // 背景除去処理
+    processFastSegmentation(results);
   } else {
-    // 背景除去が無効の場合は通常の描画
+    // 通常描画（背景色ありの場合は背景を塗りつぶし）
+    if (backgroundColor !== 'transparent') {
+      canvasCtx.fillStyle = backgroundColor;
+      canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+    }
     canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-    
-    // エフェクトのみ適用
-    if (currentEffect !== 'none') {
-      applyEffect(currentEffect);
-    }
   }
 }
 
-// 透明背景除去処理
-function processTransparentSegmentation(results) {
+// 最速背景除去処理（背景色選択対応）
+function processFastSegmentation(results) {
   const { image, segmentationMask } = results;
   
-  // 一時的なキャンバスでマスクを処理
-  const tempCanvas = document.createElement('canvas');
-  tempCanvas.width = canvasElement.width;
-  tempCanvas.height = canvasElement.height;
-  const tempCtx = tempCanvas.getContext('2d');
-  
-  // 元画像を描画
-  tempCtx.drawImage(image, 0, 0, tempCanvas.width, tempCanvas.height);
-  
-  // マスクを取得して処理
-  tempCtx.globalCompositeOperation = 'destination-in';
-  
-  // マスクを一時キャンバスに描画
-  const maskCanvas = document.createElement('canvas');
-  maskCanvas.width = canvasElement.width;
-  maskCanvas.height = canvasElement.height;
-  const maskCtx = maskCanvas.getContext('2d');
-  
-  maskCtx.drawImage(segmentationMask, 0, 0, maskCanvas.width, maskCanvas.height);
-  const maskData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
-  const data = maskData.data;
-  
-  // 閾値に基づいてマスクを処理
-  for (let i = 0; i < data.length; i += 4) {
-    const alpha = data[i] / 255; // マスク値
-    if (alpha > segmentationThreshold) {
-      // 人物として検出
-      const strength = Math.min(255, alpha * 255);
-      data[i] = strength;
-      data[i + 1] = strength;
-      data[i + 2] = strength;
-      data[i + 3] = strength;
-    } else {
-      // 背景として検出 - 完全透明
-      data[i] = 0;
-      data[i + 1] = 0;
-      data[i + 2] = 0;
-      data[i + 3] = 0;
-    }
-  }
-  
-  // 境界ぼかし処理を追加
-  if (blurAmount > 0) {
-    applyBlurToMask(maskData, maskCanvas.width, maskCanvas.height, blurAmount);
-  }
-  
-  maskCtx.putImageData(maskData, 0, 0);
-  
-  // マスクを適用
-  tempCtx.drawImage(maskCanvas, 0, 0);
-  tempCtx.globalCompositeOperation = 'source-over';
-  
-  // 最終結果をメインキャンバスに描画
-  canvasCtx.drawImage(tempCanvas, 0, 0);
-  
-  // エフェクトを適用
-  if (currentEffect !== 'none') {
-    applyEffect(currentEffect);
-  }
-}
-
-// マスクにぼかし処理を適用
-function applyBlurToMask(imageData, width, height, radius) {
-  if (radius === 0) return;
-  
-  const data = imageData.data;
-  const output = new Uint8ClampedArray(data);
-  
-  // 簡単なボックスブラー
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      let sum = 0;
-      let count = 0;
-      
-      // 周囲のピクセルの平均を計算
-      for (let dy = -radius; dy <= radius; dy++) {
-        for (let dx = -radius; dx <= radius; dx++) {
-          const ny = y + dy;
-          const nx = x + dx;
-          
-          if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
-            const idx = (ny * width + nx) * 4;
-            sum += data[idx];
-            count++;
-          }
-        }
-      }
-      
-      const idx = (y * width + x) * 4;
-      const avg = count > 0 ? Math.round(sum / count) : 0;
-      output[idx] = avg;
-      output[idx + 1] = avg;
-      output[idx + 2] = avg;
-      output[idx + 3] = avg;
-    }
-  }
-  
-  // 結果をコピー
-  for (let i = 0; i < data.length; i++) {
-    data[i] = output[i];
-  }
-}
-
-// 高度なセグメンテーション処理
-function processAdvancedSegmentation(results) {
-  const { image, segmentationMask } = results;
-  
-  // マスクを処理して精密な切り取り用マスクを作成
-  const processedMask = createPrecisionMask(segmentationMask);
-  
-  // 人物部分のみを描画
-  canvasCtx.globalCompositeOperation = 'source-over';
-  canvasCtx.drawImage(image, 0, 0, canvasElement.width, canvasElement.height);
-  
-  // 精密マスクで切り取り
-  canvasCtx.globalCompositeOperation = 'destination-in';
-  canvasCtx.drawImage(processedMask, 0, 0);
-  
-  // エフェクトを適用
-  if (currentEffect !== 'none') {
+  if (backgroundColor === 'transparent') {
+    // 透明背景（従来通り）
+    canvasCtx.drawImage(image, 0, 0, canvasElement.width, canvasElement.height);
+    canvasCtx.globalCompositeOperation = 'destination-in';
+    canvasCtx.drawImage(segmentationMask, 0, 0, canvasElement.width, canvasElement.height);
     canvasCtx.globalCompositeOperation = 'source-over';
-    applyEffect(currentEffect);
-  }
-}
-
-// 精密なマスク作成
-function createPrecisionMask(segmentationMask) {
-  const maskCanvas = document.createElement('canvas');
-  maskCanvas.width = canvasElement.width;
-  maskCanvas.height = canvasElement.height;
-  const maskCtx = maskCanvas.getContext('2d');
-  
-  // マスクを描画
-  maskCtx.drawImage(segmentationMask, 0, 0, maskCanvas.width, maskCanvas.height);
-  const imageData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
-  const data = imageData.data;
-  const width = maskCanvas.width;
-  const height = maskCanvas.height;
-  
-  // 二値化とモルフォロジー処理
-  const processedData = new Uint8ClampedArray(data.length);
-  
-  // Step 1: 閾値による二値化（より精密に）
-  for (let i = 0; i < data.length; i += 4) {
-    const maskValue = data[i] / 255; // R値を使用
-    const isHuman = maskValue > segmentationThreshold;
+  } else {
+    // 指定した背景色で塗りつぶし
     
-    processedData[i] = isHuman ? 255 : 0;     // R
-    processedData[i + 1] = isHuman ? 255 : 0; // G  
-    processedData[i + 2] = isHuman ? 255 : 0; // B
-    processedData[i + 3] = isHuman ? 255 : 0; // A
-  }
-  
-  // Step 2: モルフォロジー処理（ノイズ除去）
-  const morphProcessed = applyMorphology(processedData, width, height);
-  
-  // Step 3: 境界線のみにぼかしを適用
-  if (blurAmount > 0) {
-    applyEdgeBlur(morphProcessed, width, height);
-  }
-  
-  // 結果を描画
-  const finalImageData = new ImageData(morphProcessed, width, height);
-  maskCtx.putImageData(finalImageData, 0, 0);
-  
-  return maskCanvas;
-}
-
-// モルフォロジー処理（クロージング + オープニング）
-function applyMorphology(data, width, height) {
-  const processed = new Uint8ClampedArray(data);
-  
-  // クロージング（膨張→収縮）で小さな穴を埋める
-  const dilated = dilate(processed, width, height, 2);
-  const closed = erode(dilated, width, height, 2);
-  
-  // オープニング（収縮→膨張）で小さなノイズを除去
-  const eroded = erode(closed, width, height, 1);
-  const opened = dilate(eroded, width, height, 1);
-  
-  return opened;
-}
-
-// 膨張処理
-function dilate(data, width, height, radius) {
-  const result = new Uint8ClampedArray(data.length);
-  
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const index = (y * width + x) * 4;
-      let maxValue = 0;
-      
-      // 近傍の最大値を取得
-      for (let dy = -radius; dy <= radius; dy++) {
-        for (let dx = -radius; dx <= radius; dx++) {
-          const ny = y + dy;
-          const nx = x + dx;
-          
-          if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
-            const nIndex = (ny * width + nx) * 4;
-            maxValue = Math.max(maxValue, data[nIndex]);
-          }
-        }
-      }
-      
-      result[index] = maxValue;
-      result[index + 1] = maxValue;
-      result[index + 2] = maxValue;
-      result[index + 3] = maxValue;
-    }
-  }
-  
-  return result;
-}
-
-// 収縮処理
-function erode(data, width, height, radius) {
-  const result = new Uint8ClampedArray(data.length);
-  
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const index = (y * width + x) * 4;
-      let minValue = 255;
-      
-      // 近傍の最小値を取得
-      for (let dy = -radius; dy <= radius; dy++) {
-        for (let dx = -radius; dx <= radius; dx++) {
-          const ny = y + dy;
-          const nx = x + dx;
-          
-          if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
-            const nIndex = (ny * width + nx) * 4;
-            minValue = Math.min(minValue, data[nIndex]);
-          }
-        }
-      }
-      
-      result[index] = minValue;
-      result[index + 1] = minValue;
-      result[index + 2] = minValue;
-      result[index + 3] = minValue;
-    }
-  }
-  
-  return result;
-}
-
-// 境界線のみにぼかしを適用
-function applyEdgeBlur(data, width, height) {
-  if (blurAmount === 0) return;
-  
-  // エッジ検出
-  const edges = detectEdges(data, width, height);
-  
-  // エッジ部分のみガウシアンぼかしを適用
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const index = (y * width + x) * 4;
-      
-      if (edges[index] > 0) { // エッジピクセルの場合
-        const blurredValue = getGaussianBlur(data, x, y, width, height, blurAmount);
-        data[index] = blurredValue;
-        data[index + 1] = blurredValue;
-        data[index + 2] = blurredValue;
-        data[index + 3] = blurredValue;
-      }
-    }
+    // 背景を指定した色で塗りつぶし
+    canvasCtx.fillStyle = backgroundColor;
+    canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+    
+    // 一時キャンバスで人物部分を抽出
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = canvasElement.width;
+    tempCanvas.height = canvasElement.height;
+    const tempCtx = tempCanvas.getContext('2d');
+    
+    // 元画像を描画
+    tempCtx.drawImage(image, 0, 0, tempCanvas.width, tempCanvas.height);
+    
+    // マスクで人物部分を切り取り
+    tempCtx.globalCompositeOperation = 'destination-in';
+    tempCtx.drawImage(segmentationMask, 0, 0, tempCanvas.width, tempCanvas.height);
+    
+    // 人物部分を背景の上に描画
+    canvasCtx.drawImage(tempCanvas, 0, 0);
   }
 }
 
-// エッジ検出（ソーベルフィルタ）
-function detectEdges(data, width, height) {
-  const edges = new Uint8ClampedArray(data.length);
-  
-  for (let y = 1; y < height - 1; y++) {
-    for (let x = 1; x < width - 1; x++) {
-      const index = (y * width + x) * 4;
-      
-      // ソーベルX
-      const gx = 
-        -data[((y-1)*width + (x-1)) * 4] + data[((y-1)*width + (x+1)) * 4] +
-        -2*data[(y*width + (x-1)) * 4] + 2*data[(y*width + (x+1)) * 4] +
-        -data[((y+1)*width + (x-1)) * 4] + data[((y+1)*width + (x+1)) * 4];
-      
-      // ソーベルY  
-      const gy = 
-        -data[((y-1)*width + (x-1)) * 4] - 2*data[((y-1)*width + x) * 4] - data[((y-1)*width + (x+1)) * 4] +
-        data[((y+1)*width + (x-1)) * 4] + 2*data[((y+1)*width + x) * 4] + data[((y+1)*width + (x+1)) * 4];
-      
-      const magnitude = Math.sqrt(gx*gx + gy*gy);
-      const edgeValue = magnitude > 30 ? 255 : 0; // エッジ閾値
-      
-      edges[index] = edgeValue;
-      edges[index + 1] = edgeValue;
-      edges[index + 2] = edgeValue;
-      edges[index + 3] = edgeValue;
-    }
-  }
-  
-  return edges;
-}
-
-// ガウシアンぼかし
-function getGaussianBlur(data, x, y, width, height, radius) {
-  let sum = 0;
-  let weightSum = 0;
-  const sigma = radius / 3;
-  
-  for (let dy = -radius; dy <= radius; dy++) {
-    for (let dx = -radius; dx <= radius; dx++) {
-      const ny = y + dy;
-      const nx = x + dx;
-      
-      if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
-        const distance = dx*dx + dy*dy;
-        const weight = Math.exp(-distance / (2 * sigma * sigma));
-        const index = (ny * width + nx) * 4;
-        
-        sum += data[index] * weight;
-        weightSum += weight;
-      }
-    }
-  }
-  
-  return weightSum > 0 ? Math.round(sum / weightSum) : 0;
-}
-
-// エフェクト適用
-function applyEffect(effect) {
-  const imageData = canvasCtx.getImageData(0, 0, canvasElement.width, canvasElement.height);
-  const data = imageData.data;
-  
-  switch (effect) {
-    case 'vintage':
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        
-        data[i] = Math.min(255, r * 1.2 + 30);     // 赤を強調
-        data[i + 1] = Math.min(255, g * 1.1 + 20); // 緑を少し強調
-        data[i + 2] = Math.max(0, b * 0.8 - 20);   // 青を抑制
-      }
-      break;
-      
-    case 'cool':
-      for (let i = 0; i < data.length; i += 4) {
-        data[i] = Math.max(0, data[i] * 0.8);     // 赤を抑制
-        data[i + 1] = Math.min(255, data[i + 1] * 1.1); // 緑を強調
-        data[i + 2] = Math.min(255, data[i + 2] * 1.3); // 青を強調
-      }
-      break;
-      
-    case 'warm':
-      for (let i = 0; i < data.length; i += 4) {
-        data[i] = Math.min(255, data[i] * 1.3);   // 赤を強調
-        data[i + 1] = Math.min(255, data[i + 1] * 1.1); // 緑を少し強調
-        data[i + 2] = Math.max(0, data[i + 2] * 0.7);   // 青を抑制
-      }
-      break;
-      
-    case 'noir':
-      for (let i = 0; i < data.length; i += 4) {
-        const gray = (data[i] + data[i + 1] + data[i + 2]) / 3;
-        data[i] = gray;
-        data[i + 1] = gray;
-        data[i + 2] = gray;
-      }
-      break;
-  }
-  
-  canvasCtx.putImageData(imageData, 0, 0);
-}
-
-// カメラデバイス取得
+// カメラデバイス取得（軽量版）
 async function getCameraDevices() {
   try {
     // 初回はカメラアクセス権限を要求してからデバイス一覧を取得
@@ -454,7 +126,7 @@ async function getCameraDevices() {
   }
 }
 
-// ビデオフレームの処理
+// ビデオフレームの処理（軽量版）
 async function processVideo() {
   if (!videoElement || !selfieSegmentation) return;
   
@@ -465,47 +137,93 @@ async function processVideo() {
   requestAnimationFrame(processVideo);
 }
 
+// カメラ開始（軽量版）
 async function startCamera(deviceId = null) {
-  videoElement = document.getElementById('video');
-  canvasElement = document.getElementById('canvas');
-  canvasCtx = canvasElement.getContext('2d');
-  
   try {
+    console.log('Starting camera (lightweight) with deviceId:', deviceId);
+    
+    videoElement = document.getElementById('video');
+    canvasElement = document.getElementById('canvas');
+    canvasCtx = canvasElement.getContext('2d');
+    
+    if (!videoElement || !canvasElement) {
+      throw new Error('Video or canvas element not found');
+    }
+    
     // 既存のストリームを停止
     if (videoElement.srcObject) {
       const tracks = videoElement.srcObject.getTracks();
       tracks.forEach(track => track.stop());
+      videoElement.srcObject = null;
     }
+    
+    // 保存されたデバイスIDまたは指定されたデバイスIDを使用
+    const savedDeviceId = deviceId || localStorage.getItem('selectedCameraId');
     
     const constraints = {
       video: {
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-        facingMode: 'user'
+        width: { ideal: 480 }, // 解像度を下げて軽量化
+        height: { ideal: 360 },
+        frameRate: { ideal: 15, max: 20 } // フレームレート制限で軽量化
       }
     };
     
     // 特定のデバイスIDが指定されている場合は使用
-    if (deviceId) {
-      delete constraints.video.facingMode;
-      constraints.video.deviceId = { exact: deviceId };
+    if (savedDeviceId) {
+      constraints.video.deviceId = { exact: savedDeviceId };
+    } else {
+      constraints.video.facingMode = 'user';
     }
     
+    console.log('Camera constraints (lightweight):', constraints);
+    
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    currentCameraId = deviceId;
+    currentCameraId = savedDeviceId;
     
     videoElement.srcObject = stream;
     
-    // ビデオのメタデータが読み込まれたらキャンバスのサイズを設定
-    videoElement.addEventListener('loadedmetadata', () => {
-      canvasElement.width = videoElement.videoWidth;
-      canvasElement.height = videoElement.videoHeight;
-      processVideo();
+    // Promiseでビデオのロードを待機
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Video load timeout'));
+      }, 5000); // タイムアウト短縮
+      
+      videoElement.onloadedmetadata = () => {
+        clearTimeout(timeout);
+        console.log('Video loaded (lightweight):', videoElement.videoWidth, 'x', videoElement.videoHeight);
+        canvasElement.width = videoElement.videoWidth;
+        canvasElement.height = videoElement.videoHeight;
+        resolve();
+      };
+      
+      videoElement.onerror = () => {
+        clearTimeout(timeout);
+        reject(new Error('Video load error'));
+      };
     });
     
+    // MediaPipeが初期化されているか確認してから処理開始
+    if (selfieSegmentation) {
+      console.log('Starting video processing (lightweight)...');
+      processVideo();
+    } else {
+      throw new Error('MediaPipe not initialized');
+    }
+    
+    console.log('Camera started successfully (lightweight)');
+    
   } catch (error) {
-    console.error('Error accessing camera:', error);
-    alert('カメラへのアクセスに失敗しました。カメラの権限を確認してください。');
+    console.error('Error accessing camera (lightweight):', error);
+    
+    // 指定されたカメラが使えない場合はデフォルトで再試行
+    if (deviceId || localStorage.getItem('selectedCameraId')) {
+      console.log('Retrying with default camera...');
+      localStorage.removeItem('selectedCameraId');
+      return startCamera(null);
+    }
+    
+    alert(`カメラへのアクセスに失敗しました: ${error.message}\nカメラの権限を確認してください。`);
+    throw error;
   }
 }
 
@@ -515,7 +233,7 @@ function toggleBackgroundRemoval() {
   button.style.opacity = backgroundRemovalEnabled ? '1' : '0.6';
 }
 
-// カメラドロップダウンの初期化
+// カメラドロップダウンの初期化（軽量版）
 async function initializeCameraSelect() {
   const cameraSelect = document.getElementById('camera-select');
   
@@ -574,13 +292,13 @@ async function initializeCameraSelect() {
   }
 }
 
-// 設定パネルの制御
+// 設定パネルの制御（背景色選択対応）
 function initializeSettings() {
   const thresholdSlider = document.getElementById('threshold-slider');
   const thresholdValue = document.getElementById('threshold-value');
-  const blurSlider = document.getElementById('blur-slider');
-  const blurValue = document.getElementById('blur-value');
   const effectSelect = document.getElementById('effect-select');
+  const colorButtons = document.querySelectorAll('.color-btn');
+  const customColorPicker = document.getElementById('custom-color');
   
   if (thresholdSlider) {
     thresholdSlider.addEventListener('input', (e) => {
@@ -590,24 +308,70 @@ function initializeSettings() {
       console.log('Threshold changed to:', segmentationThreshold);
     });
     
-    // マウスイベントでもドラッグを防止
     thresholdSlider.addEventListener('mousedown', (e) => {
       e.stopPropagation();
     });
   }
   
-  if (blurSlider) {
-    blurSlider.addEventListener('input', (e) => {
+  // 背景色ボタンのイベントリスナー
+  colorButtons.forEach(btn => {
+    btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      blurAmount = parseInt(e.target.value);
-      if (blurValue) blurValue.textContent = `${blurAmount}px`;
-      console.log('Blur amount changed to:', blurAmount);
+      
+      // アクティブ状態を更新
+      colorButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      
+      // 背景色を設定
+      backgroundColor = btn.getAttribute('data-color');
+      console.log('Background color changed to:', backgroundColor);
+      
+      // localStorageに保存
+      localStorage.setItem('backgroundColor', backgroundColor);
     });
     
-    // マウスイベントでもドラッグを防止
-    blurSlider.addEventListener('mousedown', (e) => {
+    btn.addEventListener('mousedown', (e) => {
       e.stopPropagation();
     });
+  });
+  
+  // カスタムカラーピッカーのイベントリスナー
+  if (customColorPicker) {
+    customColorPicker.addEventListener('change', (e) => {
+      e.stopPropagation();
+      
+      // アクティブ状態を更新
+      colorButtons.forEach(b => b.classList.remove('active'));
+      
+      // 背景色を設定
+      backgroundColor = e.target.value;
+      console.log('Custom background color changed to:', backgroundColor);
+      
+      // localStorageに保存
+      localStorage.setItem('backgroundColor', backgroundColor);
+    });
+    
+    customColorPicker.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+    });
+  }
+  
+  // 保存された背景色を復元
+  const savedBackgroundColor = localStorage.getItem('backgroundColor');
+  if (savedBackgroundColor) {
+    backgroundColor = savedBackgroundColor;
+    
+    // UIを更新
+    const matchingBtn = document.querySelector(`[data-color="${savedBackgroundColor}"]`);
+    if (matchingBtn) {
+      colorButtons.forEach(b => b.classList.remove('active'));
+      matchingBtn.classList.add('active');
+    } else {
+      // カスタムカラーの場合
+      customColorPicker.value = savedBackgroundColor;
+    }
+    
+    console.log('Restored background color:', backgroundColor);
   }
   
   if (effectSelect) {
@@ -621,7 +385,6 @@ function initializeSettings() {
     });
   }
 }
-
 
 async function showHotkeysModal() {
   const modal = document.getElementById('hotkeys-modal');
@@ -651,7 +414,6 @@ function hideHotkeysModal() {
   const modal = document.getElementById('hotkeys-modal');
   modal.style.display = 'none';
 }
-
 
 function initializeResizeHandles() {
   const resizeHandles = document.querySelectorAll('.resize-handle');
@@ -729,12 +491,12 @@ function initializeResizeHandles() {
     }
     
     // 最大サイズ制限
-    if (newWidth > 1200) {
-      newWidth = 1200;
+    if (newWidth > 3840) {
+      newWidth = 3840;
       newHeight = newWidth / aspectRatio;
     }
-    if (newHeight > 900) {
-      newHeight = 900;
+    if (newHeight > 2160) {
+      newHeight = 2160;
       newWidth = newHeight * aspectRatio;
     }
     
@@ -772,15 +534,32 @@ function closeWindow() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  initializeSelfieSegmentation();
-  initializeSettings();
-  initializeResizeHandles();
-  
-  // カメラ選択を初期化してから、保存されたカメラまたはデフォルトカメラを開始
-  await initializeCameraSelect();
-  
-  const savedCameraId = localStorage.getItem('selectedCameraId');
-  await startCamera(savedCameraId);
+  try {
+    console.log('DOM loaded, starting lightweight initialization...');
+    
+    initializeSettings();
+    initializeResizeHandles();
+    
+    // MediaPipeを初期化して待機（軽量版）
+    console.log('Initializing MediaPipe (lightweight)...');
+    await initializeSelfieSegmentation();
+    console.log('MediaPipe initialization complete (lightweight)');
+    
+    // カメラ選択を初期化
+    console.log('Initializing camera select (lightweight)...');
+    await initializeCameraSelect();
+    
+    // カメラを開始
+    const savedCameraId = localStorage.getItem('selectedCameraId');
+    console.log('Starting camera (lightweight) with saved ID:', savedCameraId);
+    await startCamera(savedCameraId);
+    
+    console.log('All initialization complete (lightweight)');
+    
+  } catch (error) {
+    console.error('Initialization failed (lightweight):', error);
+    alert('アプリの初期化に失敗しました: ' + error.message);
+  }
   
   document.getElementById('toggle-bg').addEventListener('click', toggleBackgroundRemoval);
   document.getElementById('show-hotkeys').addEventListener('click', showHotkeysModal);

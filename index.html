@@ -35,19 +35,15 @@
         <span id="threshold-value">0.5</span>
       </div>
       <div class="setting-group">
-        <label>境界ぼかし</label>
-        <input type="range" id="blur-slider" min="0" max="20" value="2" step="1">
-        <span id="blur-value">2px</span>
-      </div>
-      <div class="setting-group">
-        <label>エフェクト</label>
-        <select id="effect-select">
-          <option value="none">なし</option>
-          <option value="vintage">ヴィンテージ</option>
-          <option value="cool">クール</option>
-          <option value="warm">ウォーム</option>
-          <option value="noir">ノワール</option>
-        </select>
+        <label>背景色</label>
+        <div class="color-options">
+          <button class="color-btn transparent-btn active" data-color="transparent" title="透明">📍</button>
+          <button class="color-btn" data-color="#000000" title="黒" style="background: #000000;"></button>
+          <button class="color-btn" data-color="#ffffff" title="白" style="background: #ffffff; border: 1px solid #ccc;"></button>
+          <button class="color-btn" data-color="#00ff00" title="グリーン" style="background: #00ff00;"></button>
+          <button class="color-btn" data-color="#0066ff" title="ブルー" style="background: #0066ff;"></button>
+          <input type="color" id="custom-color" value="#ff0000" title="カスタムカラー">
+        </div>
       </div>
     </div>
     <div id="hotkeys-modal" class="modal" style="display: none;">

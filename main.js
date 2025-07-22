@@ -9,12 +9,12 @@ let mainWindow = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 320,
-    height: 240,
+    width: 960,
+    height: 720,
     minWidth: 160,
     minHeight: 120,
-    maxWidth: 1200,
-    maxHeight: 900,
+    maxWidth: 3840,
+    maxHeight: 2160,
     transparent: true,
     frame: false,
     alwaysOnTop: true,
@@ -137,8 +137,8 @@ ipcMain.on('resize-window', (event, { newWidth, newHeight }) => {
   if (!mainWindow) return;
   
   // サイズ制限を適用
-  const width = Math.max(160, Math.min(1200, newWidth));
-  const height = Math.max(120, Math.min(900, newHeight));
+  const width = Math.max(160, Math.min(3840, newWidth));
+  const height = Math.max(120, Math.min(2160, newHeight));
   
   // ウィンドウサイズを設定
   mainWindow.setSize(Math.round(width), Math.round(height));
