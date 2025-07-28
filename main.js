@@ -37,6 +37,15 @@ function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+
+  // ウィンドウリサイズイベントを監視
+  mainWindow.on('resize', () => {
+    if (mainWindow) {
+      const [width, height] = mainWindow.getSize();
+      console.log('Window resized to:', width, 'x', height);
+      mainWindow.webContents.send('window-resized', { width, height });
+    }
+  });
 }
 
 function registerGlobalShortcuts() {

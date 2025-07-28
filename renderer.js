@@ -219,8 +219,15 @@ async function startCameraWithMacOSBackground(deviceId = null) {
       videoElement.onloadedmetadata = () => {
         clearTimeout(timeout);
         console.log('📹 Video loaded:', videoElement.videoWidth, 'x', videoElement.videoHeight);
-        canvasElement.width = videoElement.videoWidth;
-        canvasElement.height = videoElement.videoHeight;
+        
+        // コンテナの現在のサイズを取得
+        const container = document.getElementById('container');
+        const containerWidth = container ? container.offsetWidth : 960;
+        const containerHeight = container ? container.offsetHeight : 720;
+        
+        // キャンバスサイズをコンテナに合わせる
+        updateCanvasSize(containerWidth, containerHeight);
+        
         resolve();
       };
     });
@@ -460,8 +467,15 @@ async function startCamera(deviceId = null) {
       videoElement.onloadedmetadata = () => {
         clearTimeout(timeout);
         console.log('Video loaded (lightweight):', videoElement.videoWidth, 'x', videoElement.videoHeight);
-        canvasElement.width = videoElement.videoWidth;
-        canvasElement.height = videoElement.videoHeight;
+        
+        // コンテナの現在のサイズを取得
+        const container = document.getElementById('container');
+        const containerWidth = container ? container.offsetWidth : 960;
+        const containerHeight = container ? container.offsetHeight : 720;
+        
+        // キャンバスサイズをコンテナに合わせる
+        updateCanvasSize(containerWidth, containerHeight);
+        
         resolve();
       };
       
@@ -900,14 +914,13 @@ function initializeResizeHandles() {
     container.style.width = `${newWidth}px`;
     container.style.height = `${newHeight}px`;
     
-    // キャンバスサイズも同期
-    if (canvasElement) {
-      canvasElement.width = newWidth;
-      canvasElement.height = newHeight;
-    }
+    // キャンバスとビデオ要素のサイズ同期
+    updateCanvasSize(newWidth, newHeight);
     
     // Electronウィンドウサイズを同期
     window.electronAPI.resizeWindow(newWidth, newHeight);
+    
+    console.log('📹 Resized to:', newWidth, 'x', newHeight);
   });
   
   document.addEventListener('mouseup', () => {
@@ -921,44 +934,90 @@ function initializeResizeHandles() {
   });
 }
 
-// ウィンドウアクティブ状態管理
-function setWindowActive(active) {
+// ウィンドウアクティブ状態管理（修復版）
+function setWindowActive(active, reason = 'unknown') {
   const container = document.getElementById('container');
-  if (!container) return;
+  if (!container) {
+    console.error('❌ Container element not found');
+    return;
+  }
+  
+  console.log(`🔄 setWindowActive called: ${active} (reason: ${reason})`);
+  console.log(`🔍 Previous state: isWindowActive=${isWindowActive}, activeTimeout=${!!activeTimeout}`);
+  
+  // 既に同じ状態の場合はスキップ（タイマーリセットを除く）
+  if (isWindowActive === active && reason !== 'timer-reset') {
+    console.log('⚠️ Same state, skipping...');
+    return;
+  }
   
   isWindowActive = active;
   
+  // タイマーを先にクリア
+  if (activeTimeout) {
+    clearTimeout(activeTimeout);
+    activeTimeout = null;
+    console.log('🔄 Timer cleared');
+  }
+  
   if (active) {
     container.classList.add('active');
-    console.log('📺 Window activated - showing skeleton UI');
+    console.log('✅ Window ACTIVATED - skeleton UI shown');
+    console.log('🔍 Container classes:', container.classList.toString());
     
-    // 自動非アクティブ化タイマーをリセット
-    if (activeTimeout) {
-      clearTimeout(activeTimeout);
-    }
-    
-    // 3秒後に自動で非アクティブ化
+    // 5秒後に自動で非アクティブ化（時間2秒延長）
     activeTimeout = setTimeout(() => {
-      setWindowActive(false);
-    }, 3000);
+      console.log('⏰ Auto-deactivating after 5 seconds');
+      setWindowActive(false, 'auto-timeout');
+    }, 5000);
   } else {
     container.classList.remove('active');
-    console.log('📺 Window deactivated - hiding skeleton UI');
-    
-    if (activeTimeout) {
-      clearTimeout(activeTimeout);
-      activeTimeout = null;
-    }
+    console.log('❌ Window DEACTIVATED - skeleton UI hidden');
+    console.log('🔍 Container classes:', container.classList.toString());
   }
+  
+  console.log('🔍 Final state: isWindowActive=${isWindowActive}, activeTimeout=${!!activeTimeout}');
 }
 
 // アクティブタイマーをリセット（ユーザー操作時）
 function resetActiveTimer() {
-  if (isWindowActive && activeTimeout) {
-    clearTimeout(activeTimeout);
-    activeTimeout = setTimeout(() => {
-      setWindowActive(false);
-    }, 3000);
+  console.log('🔄 resetActiveTimer called, isWindowActive:', isWindowActive);
+  
+  if (isWindowActive) {
+    // アクティブ状態でタイマーをリセット
+    setWindowActive(true, 'timer-reset');
+  } else {
+    // 非アクティブ状態でもアクティブ化
+    setWindowActive(true, 'user-interaction');
+  }
+}
+
+// キャンバスサイズ更新関数
+function updateCanvasSize(width, height) {
+  if (!canvasElement || !videoElement) {
+    console.warn('⚠️ Canvas or video element not found for resize');
+    return;
+  }
+  
+  console.log('📹 Updating canvas size to:', width, 'x', height);
+  
+  // CSSサイズを更新（表示サイズ）- コンテナ全体に映像を表示
+  canvasElement.style.width = width + 'px';
+  canvasElement.style.height = height + 'px';
+  videoElement.style.width = width + 'px';
+  videoElement.style.height = height + 'px';
+  
+  // キャンバスの実際の描画サイズをコンテナサイズに合わせる
+  // （映像をコンテナ全体に伸縮表示）
+  canvasElement.width = width;
+  canvasElement.height = height;
+  
+  console.log('📹 Canvas size set to container size:', width, 'x', height);
+  
+  // MediaPipe処理中のキャンバスサイズも同期
+  if (window.selfieSegmentation && videoElement.videoWidth && videoElement.videoHeight) {
+    // 次回のセグメンテーション処理時に新しいサイズが使用される
+    console.log('📹 MediaPipe will use new canvas size on next frame');
   }
 }
 
@@ -1011,6 +1070,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     isInitializing = false; // エラー時もフラグをリセット
     alert('アプリの初期化に失敗しました: ' + error.message);
   }
+  
+  // ウィンドウリサイズイベントリスナーを追加
+  window.electronAPI.onWindowResized((event, { width, height }) => {
+    console.log('📹 Window resized event received:', width, 'x', height);
+    const container = document.getElementById('container');
+    if (container) {
+      // コンテナサイズを新しいウィンドウサイズに合わせて更新
+      container.style.width = width + 'px';
+      container.style.height = height + 'px';
+      
+      // カメラ映像サイズも連動して更新
+      updateCanvasSize(width, height);
+      
+      console.log('📹 Container and canvas updated to window size:', width, 'x', height);
+    }
+  });
   
   document.getElementById('toggle-bg').addEventListener('click', (e) => {
     resetActiveTimer();
@@ -1078,10 +1153,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   const container = document.getElementById('container');
   
-  // ウィンドウクリックでアクティブ化
+  // 左クリックでアクティブ化（右クリックは無視）
   container.addEventListener('click', (e) => {
-    console.log('📺 Container clicked - activating window');
-    setWindowActive(true);
+    // 左クリックのみ処理
+    if (e.button === 0) {
+      e.stopPropagation(); // イベントバブリングを停止
+      console.log('📺 Container left-clicked - activating window');
+      setWindowActive(true, 'container-click');
+    }
+  });
+  
+  // 右クリックメニューを無効化
+  container.addEventListener('contextmenu', (e) => {
+    e.preventDefault(); // 右クリックメニューを無効化
+    console.log('📺 Right-click disabled');
+  });
+  
+  // ウィンドウ外クリックで非アクティブ化
+  document.addEventListener('click', (e) => {
+    // コンテナ内のクリックでない場合
+    if (!container.contains(e.target)) {
+      console.log('📺 Outside click detected - deactivating window');
+      setWindowActive(false, 'outside-click');
+    }
   });
   
   container.addEventListener('mousedown', (e) => {
