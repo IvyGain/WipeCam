@@ -1001,18 +1001,57 @@ function updateCanvasSize(width, height) {
   
   console.log('📹 Updating canvas size to:', width, 'x', height);
   
-  // CSSサイズを更新（表示サイズ）- コンテナ全体に映像を表示
-  canvasElement.style.width = width + 'px';
-  canvasElement.style.height = height + 'px';
-  videoElement.style.width = width + 'px';
-  videoElement.style.height = height + 'px';
+  // ビデオのアスペクト比を取得
+  let videoAspect = 16/9; // デフォルト比率
+  if (videoElement.videoWidth && videoElement.videoHeight) {
+    videoAspect = videoElement.videoWidth / videoElement.videoHeight;
+    console.log('📹 Video aspect ratio:', videoAspect, '(', videoElement.videoWidth, 'x', videoElement.videoHeight, ')');
+  }
   
-  // キャンバスの実際の描画サイズをコンテナサイズに合わせる
-  // （映像をコンテナ全体に伸縮表示）
-  canvasElement.width = width;
-  canvasElement.height = height;
+  // コンテナのアスペクト比
+  const containerAspect = width / height;
   
-  console.log('📹 Canvas size set to container size:', width, 'x', height);
+  // アスペクト比を維持したサイズを計算
+  let displayWidth, displayHeight;
+  let canvasWidth, canvasHeight;
+  
+  if (videoAspect > containerAspect) {
+    // ビデオが横長 - 幅を基準にサイズ調整
+    displayWidth = width;
+    displayHeight = width / videoAspect;
+    canvasWidth = width;
+    canvasHeight = Math.round(width / videoAspect);
+  } else {
+    // ビデオが縦長 - 高さを基準にサイズ調整
+    displayHeight = height;
+    displayWidth = height * videoAspect;
+    canvasHeight = height;
+    canvasWidth = Math.round(height * videoAspect);
+  }
+  
+  // CSSサイズを更新（表示サイズ）- アスペクト比を維持
+  canvasElement.style.width = displayWidth + 'px';
+  canvasElement.style.height = displayHeight + 'px';
+  videoElement.style.width = displayWidth + 'px';
+  videoElement.style.height = displayHeight + 'px';
+  
+  // キャンバスを中央配置
+  canvasElement.style.position = 'absolute';
+  canvasElement.style.left = '50%';
+  canvasElement.style.top = '50%';
+  canvasElement.style.transform = 'translate(-50%, -50%)';
+  
+  videoElement.style.position = 'absolute';
+  videoElement.style.left = '50%';
+  videoElement.style.top = '50%';
+  videoElement.style.transform = 'translate(-50%, -50%)';
+  
+  // キャンバスの実際の描画サイズをアスペクト比維持サイズに設定
+  canvasElement.width = canvasWidth;
+  canvasElement.height = canvasHeight;
+  
+  console.log('📹 Canvas size set with aspect ratio maintained:', canvasWidth, 'x', canvasHeight);
+  console.log('📹 Display size:', displayWidth, 'x', displayHeight);
   
   // MediaPipe処理中のキャンバスサイズも同期
   if (window.selfieSegmentation && videoElement.videoWidth && videoElement.videoHeight) {
@@ -1088,21 +1127,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   
   document.getElementById('toggle-bg').addEventListener('click', (e) => {
-    resetActiveTimer();
+    e.stopPropagation(); // バブリング停止
+    setWindowActive(true, 'button-click'); // アクティブ化
     toggleBackgroundRemoval();
   });
   
   document.getElementById('show-hotkeys').addEventListener('click', (e) => {
-    resetActiveTimer();
+    e.stopPropagation(); // バブリング停止
+    setWindowActive(true, 'button-click'); // アクティブ化
     showHotkeysModal();
   });
   
   document.getElementById('close-modal').addEventListener('click', (e) => {
-    resetActiveTimer();
+    e.stopPropagation(); // バブリング停止
+    setWindowActive(true, 'button-click'); // アクティブ化
     hideHotkeysModal();
   });
   
   document.getElementById('close').addEventListener('click', (e) => {
+    e.stopPropagation(); // バブリング停止
     resetActiveTimer();
     closeWindow();
   });
@@ -1111,7 +1154,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const closeSettingsBtn = document.getElementById('close-settings');
   if (closeSettingsBtn) {
     closeSettingsBtn.addEventListener('click', (e) => {
-      resetActiveTimer();
+      e.stopPropagation(); // バブリング停止
+      setWindowActive(true, 'button-click'); // アクティブ化
       const panel = document.getElementById('settings-panel');
       if (panel) {
         panel.classList.add('hidden');
@@ -1123,7 +1167,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const settingsBtn = document.getElementById('settings');
   if (settingsBtn) {
     settingsBtn.addEventListener('click', (e) => {
-      resetActiveTimer();
+      e.stopPropagation(); // バブリング停止
+      setWindowActive(true, 'button-click'); // アクティブ化
       const panel = document.getElementById('settings-panel');
       if (panel) {
         panel.classList.toggle('hidden');
@@ -1154,19 +1199,36 @@ document.addEventListener('DOMContentLoaded', async () => {
   const container = document.getElementById('container');
   
   // 左クリックでアクティブ化（右クリックは無視）
+  let lastMouseButton = -1;
+  
+  container.addEventListener('mousedown', (e) => {
+    lastMouseButton = e.button;
+    if (e.button === 0) { // 左クリック
+      console.log('📺 Container left mouse down - preparing to activate');
+    }
+  });
+  
   container.addEventListener('click', (e) => {
-    // 左クリックのみ処理
-    if (e.button === 0) {
+    // 左クリックのみ処理（mousedownで記録されたボタンを確認）
+    if (lastMouseButton === 0) {
       e.stopPropagation(); // イベントバブリングを停止
       console.log('📺 Container left-clicked - activating window');
       setWindowActive(true, 'container-click');
     }
+    lastMouseButton = -1; // リセット
   });
   
-  // 右クリックメニューを無効化
-  container.addEventListener('contextmenu', (e) => {
+  // 右クリックメニューを無効化（全体に適用）
+  document.addEventListener('contextmenu', (e) => {
     e.preventDefault(); // 右クリックメニューを無効化
     console.log('📺 Right-click disabled');
+  });
+  
+  // 特にコンテナ内での右クリックを確実に無効化
+  container.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('📺 Container right-click disabled');
   });
   
   // ウィンドウ外クリックで非アクティブ化
