@@ -1179,6 +1179,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // IPC listeners for hotkey actions
   window.electronAPI.onToggleBackground(() => {
     console.log('⌨️ Hotkey triggered for background removal toggle');
+    setWindowActive(true, 'hotkey-triggered'); // ホットキー使用時にアクティブ化
     toggleBackgroundRemoval();
   });
   
@@ -1198,24 +1199,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   const container = document.getElementById('container');
   
-  // 左クリックでアクティブ化（右クリックは無視）
-  let lastMouseButton = -1;
-  
-  container.addEventListener('mousedown', (e) => {
-    lastMouseButton = e.button;
-    if (e.button === 0) { // 左クリック
-      console.log('📺 Container left mouse down - preparing to activate');
-    }
-  });
-  
+  // 左クリックでアクティブ化（clickイベントは左クリックのみで発火するため安全）
   container.addEventListener('click', (e) => {
-    // 左クリックのみ処理（mousedownで記録されたボタンを確認）
-    if (lastMouseButton === 0) {
-      e.stopPropagation(); // イベントバブリングを停止
-      console.log('📺 Container left-clicked - activating window');
-      setWindowActive(true, 'container-click');
-    }
-    lastMouseButton = -1; // リセット
+    // ボタンやコントロール要素のクリックは除外
+    if (e.target.tagName === 'BUTTON' || 
+        e.target.classList.contains('resize-handle') ||
+        e.target.closest('.settings-panel') ||
+        e.target.closest('#controls') ||
+        e.target.tagName === 'INPUT' ||
+        e.target.tagName === 'SELECT' ||
+        e.target.tagName === 'LABEL') return;
+        
+    e.stopPropagation(); // イベントバブリングを停止
+    console.log('📺 Container left-clicked - activating window');
+    setWindowActive(true, 'container-click');
   });
   
   // 右クリックメニューを無効化（全体に適用）
@@ -1241,6 +1238,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   
   container.addEventListener('mousedown', (e) => {
+    // 左クリック以外は無視（右クリックでドラッグしない）
+    if (e.button !== 0) return;
+    
     // リサイズハンドル、ボタン、設定パネル内の要素の場合はドラッグ無効
     if (e.target.tagName === 'BUTTON' || 
         e.target.classList.contains('resize-handle') ||
@@ -1251,12 +1251,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         e.target.tagName === 'LABEL') return;
     
     // ウィンドウをアクティブ化
-    setWindowActive(true);
+    setWindowActive(true, 'drag-start');
     
     initialX = e.clientX;
     initialY = e.clientY;
     isDragging = true;
     container.style.cursor = 'move';
+    
+    console.log('📺 Drag started with left mouse button');
   });
   
   document.addEventListener('mousemove', (e) => {

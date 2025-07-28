@@ -65,9 +65,12 @@ function registerGlobalShortcuts() {
 
     // ホットキー: Ctrl+Shift+B - 背景除去のトグル
     const registered2 = globalShortcut.register('CommandOrControl+Shift+B', () => {
-      console.log('Hotkey triggered: Toggle background');
-      if (mainWindow) {
+      console.log('🔥 Hotkey triggered: Toggle background removal');
+      if (mainWindow && mainWindow.webContents) {
+        console.log('📤 Sending toggle-background event to renderer');
         mainWindow.webContents.send('toggle-background');
+      } else {
+        console.error('❌ MainWindow or webContents not available');
       }
     });
     console.log('CommandOrControl+Shift+B registered:', registered2);
