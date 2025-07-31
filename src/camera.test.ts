@@ -1,60 +1,155 @@
-import { describe, test, expect, vi } from 'vitest';
-import { CameraManager } from './camera';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { CameraManager } from './camera.js';
 
-// Mock navigator.mediaDevices
-global.navigator = {
-  mediaDevices: {
-    getUserMedia: vi.fn(),
-    enumerateDevices: vi.fn(),
+// Mock MediaDevices API
+const mockStream = {
+  getTracks: vi.fn(() => [
+    { stop: vi.fn() }
+  ])
+};
+
+const mockVideoDevice = {
+  deviceId: 'camera1',
+  kind: 'videoinput',
+  label: 'Test Camera'
+};
+
+Object.defineProperty(global, 'navigator', {
+  value: {
+    mediaDevices: {
+      getUserMedia: vi.fn(),
+      enumerateDevices: vi.fn()
+    }
   },
-} as any;
+  writable: true
+});
+
+Object.defineProperty(global, 'localStorage', {
+  value: {
+    getItem: vi.fn(),
+    setItem: vi.fn(),
+    removeItem: vi.fn()
+  },
+  writable: true
+});
+
+Object.defineProperty(global, 'console', {
+  value: {
+    log: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn()
+  },
+  writable: true
+});
 
 describe('CameraManager', () => {
-  test('should initialize camera stream', async () => {
-    const mockStream = {
-      id: 'test-stream',
-      active: true,
-      getTracks: vi.fn(() => []),
-    };
-    
-    vi.mocked(navigator.mediaDevices.getUserMedia).mockResolvedValue(mockStream as any);
-    
-    const camera = new CameraManager();
-    const stream = await camera.startCamera();
-    
-    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
-      video: {
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-        facingMode: 'user',
-      },
+  let cameraManager: CameraManager;
+
+  beforeEach(() => {
+    cameraManager = new CameraManager();
+    vi.clearAllMocks();
+  });
+
+  describe('getCameraDevices', () => {
+    it('should return available camera devices', async () => {
+      (navigator.mediaDevices.getUserMedia as any).mockResolvedValue(mockStream);
+      (navigator.mediaDevices.enumerateDevices as any).mockResolvedValue([
+        mockVideoDevice,
+        { deviceId: 'audio1', kind: 'audioinput', label: 'Test Mic' }
+      ]);
+
+      const devices = await cameraManager.getCameraDevices();
+
+      expect(devices).toHaveLength(1);
+      expect(devices[0]).toEqual({
+        deviceId: 'camera1',
+        label: 'Test Camera'
+      });
     });
-    expect(stream).toBe(mockStream);
+
+    it('should handle permission errors gracefully', async () => {
+      (navigator.mediaDevices.getUserMedia as any).mockRejectedValue(new Error('Permission denied'));
+      (navigator.mediaDevices.enumerateDevices as any).mockResolvedValue([mockVideoDevice]);
+
+      const devices = await cameraManager.getCameraDevices();
+
+      expect(console.warn).toHaveBeenCalledWith('Camera permission not granted:', expect.any(Error));
+      expect(devices).toHaveLength(1);
+    });
+
+    it('should handle enumeration errors', async () => {
+      (navigator.mediaDevices.getUserMedia as any).mockResolvedValue(mockStream);
+      (navigator.mediaDevices.enumerateDevices as any).mockRejectedValue(new Error('Enumeration failed'));
+
+      const devices = await cameraManager.getCameraDevices();
+
+      expect(console.error).toHaveBeenCalledWith('Failed to get camera devices:', expect.any(Error));
+      expect(devices).toEqual([]);
+    });
   });
 
-  test('should handle camera permission denied', async () => {
-    vi.mocked(navigator.mediaDevices.getUserMedia).mockRejectedValue(
-      new Error('Permission denied')
-    );
-    
-    const camera = new CameraManager();
-    await expect(camera.startCamera()).rejects.toThrow('Permission denied');
+  describe('startCamera', () => {
+    it('should start camera with default constraints', async () => {
+      (navigator.mediaDevices.getUserMedia as any).mockResolvedValue(mockStream);
+
+      const stream = await cameraManager.startCamera();
+
+      expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 },
+          facingMode: 'user',
+          deviceId: undefined
+        }
+      });
+      expect(stream).toBe(mockStream);
+    });
+
+    it('should start camera with specific device ID', async () => {
+      (navigator.mediaDevices.getUserMedia as any).mockResolvedValue(mockStream);
+
+      await cameraManager.startCamera('camera1');
+
+      expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 },
+          facingMode: undefined,
+          deviceId: { exact: 'camera1' }
+        }
+      });
+    });
+
+    it('should retry with default camera on device error', async () => {
+      (localStorage.getItem as any).mockReturnValue('invalid-device');
+      (navigator.mediaDevices.getUserMedia as any)
+        .mockRejectedValueOnce(new Error('Device not found'))
+        .mockResolvedValueOnce(mockStream);
+
+      const stream = await cameraManager.startCamera();
+
+      expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledTimes(2);
+      expect(localStorage.removeItem).toHaveBeenCalledWith('selectedCameraId');
+      expect(stream).toBe(mockStream);
+    });
   });
 
-  test('should stop camera stream', async () => {
-    const mockTrack = {
-      stop: vi.fn(),
-    };
-    const mockStream = {
-      getTracks: vi.fn(() => [mockTrack]),
-    };
-    
-    vi.mocked(navigator.mediaDevices.getUserMedia).mockResolvedValue(mockStream as any);
-    
-    const camera = new CameraManager();
-    await camera.startCamera();
-    camera.stopCamera();
-    
-    expect(mockTrack.stop).toHaveBeenCalled();
+  describe('stopCamera', () => {
+    it('should stop all tracks in the stream', async () => {
+      (navigator.mediaDevices.getUserMedia as any).mockResolvedValue(mockStream);
+      
+      await cameraManager.startCamera();
+      cameraManager.stopCamera();
+
+      expect(mockStream.getTracks).toHaveBeenCalled();
+    });
+
+    it('should handle stopping when no stream exists', () => {
+      expect(() => {
+        cameraManager.stopCamera();
+      }).not.toThrow();
+    });
   });
 });

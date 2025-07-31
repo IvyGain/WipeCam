@@ -6,12 +6,19 @@
     "noEmit": false,
     "outDir": "./dist",
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
     "skipLibCheck": true,
-    "types": ["vitest/importMeta"],
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "types": ["vitest/importMeta", "node"],
     "lib": ["DOM", "ESNext"]
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }
