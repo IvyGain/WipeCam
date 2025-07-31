@@ -1,68 +1,84 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>WipeCam</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WipeCam - AppStore版</title>
+    <link rel="stylesheet" href="style-appstore.css">
 </head>
 <body>
-  <div id="container">
-    <video id="video" autoplay muted style="display: none;"></video>
-    <canvas id="canvas"></canvas>
-    
-    <!-- Resize handles -->
-    <div class="resize-handle nw" data-direction="nw"></div>
-    <div class="resize-handle ne" data-direction="ne"></div>
-    <div class="resize-handle sw" data-direction="sw"></div>
-    <div class="resize-handle se" data-direction="se"></div>
-    <div id="controls">
-      <button id="toggle-bg" title="背景除去 (Ctrl+Shift+B)">🎭</button>
-      <button id="settings" title="設定">⚙️</button>
-      <button id="show-hotkeys" title="ホットキー一覧">⌨️</button>
-      <button id="close" title="閉じる (Ctrl+Shift+Q)">✕</button>
+    <div id="app-container">
+        <header class="app-header">
+            <h1>WipeCam</h1>
+            <div class="app-controls">
+                <button id="minimize-btn" class="control-btn">−</button>
+                <button id="maximize-btn" class="control-btn">□</button>
+                <button id="close-btn" class="control-btn">×</button>
+            </div>
+        </header>
+
+        <main class="app-main">
+            <div class="camera-container">
+                <video id="video" autoplay muted playsinline></video>
+                <canvas id="canvas"></canvas>
+                
+                <div class="camera-overlay">
+                    <div class="camera-status">
+                        <span id="camera-status-text">カメラ初期化中...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls-panel">
+                <div class="control-group">
+                    <label for="camera-select">カメラ:</label>
+                    <select id="camera-select">
+                        <option value="">カメラを選択...</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="background-toggle">
+                        <input type="checkbox" id="background-toggle">
+                        背景除去
+                    </label>
+                </div>
+
+                <div class="control-group">
+                    <label for="background-color">背景色:</label>
+                    <select id="background-color">
+                        <option value="transparent">透明</option>
+                        <option value="#000000">黒</option>
+                        <option value="#ffffff">白</option>
+                        <option value="#00ff00">緑</option>
+                        <option value="#0000ff">青</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="effect-select">エフェクト:</label>
+                    <select id="effect-select">
+                        <option value="none">なし</option>
+                        <option value="vintage">ヴィンテージ</option>
+                        <option value="cool">クール</option>
+                        <option value="warm">ウォーム</option>
+                        <option value="noir">ノワール</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <button id="save-button" class="primary-btn">画像保存</button>
+                </div>
+            </div>
+        </main>
+
+        <footer class="app-footer">
+            <div class="shortcuts-info">
+                <span>ショートカット: Cmd+S (保存) | Cmd+B (背景除去) | Cmd+R (カメラ再起動)</span>
+            </div>
+        </footer>
     </div>
-    <div id="settings-panel" class="settings-panel hidden">
-      <div class="settings-header">
-        <h3>設定</h3>
-        <button id="close-settings" class="close-btn" title="設定を閉じる">×</button>
-      </div>
-      <div class="setting-group">
-        <label>カメラ</label>
-        <select id="camera-select">
-          <option value="">カメラを読み込み中...</option>
-        </select>
-      </div>
-      <div class="setting-group">
-        <label>フィルタ強度</label>
-        <input type="range" id="threshold-slider" min="0.1" max="0.9" value="0.5" step="0.1">
-        <span id="threshold-value">0.5</span>
-      </div>
-      <div class="setting-group">
-        <label>macOS背景処理</label>
-        <button id="enable-macos-bg" class="feature-btn">🎆 高精度背景処理を有効化</button>
-        <small>※ macOS純正のハードウェアアクセラレーションを使用</small>
-      </div>
-      <div class="setting-group">
-        <label>背景色</label>
-        <div class="color-options">
-          <button class="color-btn transparent-btn active" data-color="transparent" title="透明">📍</button>
-          <button class="color-btn" data-color="#000000" title="黒" style="background: #000000;"></button>
-          <button class="color-btn" data-color="#ffffff" title="白" style="background: #ffffff; border: 1px solid #ccc;"></button>
-          <button class="color-btn" data-color="#00ff00" title="グリーン" style="background: #00ff00;"></button>
-          <button class="color-btn" data-color="#0066ff" title="ブルー" style="background: #0066ff;"></button>
-          <input type="color" id="custom-color" value="#ff0000" title="カスタムカラー">
-        </div>
-      </div>
-    </div>
-    <div id="hotkeys-modal" class="modal" style="display: none;">
-      <div class="modal-content">
-        <h3>ホットキー一覧</h3>
-        <div id="hotkeys-list"></div>
-        <button id="close-modal">閉じる</button>
-      </div>
-    </div>
-  </div>
-  <script type="module" src="dist/renderer.js"></script>
+
+    <script type="module" src="renderer-appstore.js"></script>
 </body>
-</html>
+</html> 

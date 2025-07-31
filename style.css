@@ -1,476 +1,318 @@
+/* AppStore対応版 WipeCam スタイル */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
 body {
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  background: transparent;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f5f5f7;
+    color: #1d1d1f;
+    overflow: hidden;
+    user-select: none;
 }
 
-#container {
-  width: 960px;
-  height: 720px;
-  position: relative;
-  background: transparent;
-  border-radius: 12px;
-  overflow: hidden;
-  transition: all 0.3s ease;
-  -webkit-app-region: drag;
+#app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
-/* アクティブ時のスケルトンUI */
-#container.active {
-  border: 2px solid rgba(0, 122, 255, 0.6);
-  box-shadow: 0 0 0 1px rgba(0, 122, 255, 0.2),
-              0 4px 20px rgba(0, 122, 255, 0.15);
-  background: rgba(0, 0, 0, 0.02);
+/* ヘッダー */
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 8px 8px 0 0;
+    -webkit-app-region: drag;
 }
 
-/* 非アクティブ時は完全に透明 */
-#container:not(.active) {
-  border: none;
-  box-shadow: none;
-  background: transparent;
+.app-header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.app-controls {
+    display: flex;
+    gap: 8px;
+    -webkit-app-region: no-drag;
+}
+
+.control-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.control-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+#close-btn:hover {
+    background: #ff5f57;
+}
+
+/* メインコンテンツ */
+.app-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    gap: 20px;
+}
+
+/* カメラコンテナ */
+.camera-container {
+    position: relative;
+    flex: 1;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    min-height: 400px;
 }
 
 #video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transform: scaleX(-1);
-  border-radius: 12px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 1;
 }
 
 #canvas {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transform: scaleX(-1);
-  border-radius: 12px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2;
 }
 
-#controls {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  display: flex;
-  gap: 8px;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.2s ease, visibility 0.2s ease;
-  -webkit-app-region: no-drag;
+.camera-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 3;
+    pointer-events: none;
 }
 
-/* ホバー無効化 - アクティブ時のみ表示 */
-#container.active #controls {
-  opacity: 1;
-  visibility: visible;
+.camera-status {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
 }
 
-button {
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s ease, transform 0.1s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+/* コントロールパネル */
+.controls-panel {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
 }
 
-button:hover {
-  background: rgba(255, 255, 255, 1);
-  transform: scale(1.1);
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
-button:active {
-  transform: scale(0.95);
+.control-group label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #495057;
 }
 
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  -webkit-app-region: no-drag;
+.control-group select,
+.control-group input[type="checkbox"] {
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+    transition: border-color 0.2s;
 }
 
-.modal-content {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  min-width: 250px;
-  max-width: 300px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+.control-group select:focus,
+.control-group input[type="checkbox"]:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-.modal-content h3 {
-  margin: 0 0 15px 0;
-  text-align: center;
-  color: #333;
-  font-size: 18px;
+.control-group input[type="checkbox"] {
+    width: auto;
+    margin-right: 8px;
 }
 
-#hotkeys-list {
-  margin-bottom: 15px;
+.primary-btn {
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.hotkey-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid #eee;
+.primary-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
-.hotkey-item:last-child {
-  border-bottom: none;
+.primary-btn:active {
+    transform: translateY(0);
 }
 
-.hotkey-key {
-  font-family: monospace;
-  background: #f5f5f5;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: bold;
+/* フッター */
+.app-footer {
+    padding: 12px 20px;
+    background: #f8f9fa;
+    border-top: 1px solid #e9ecef;
+    border-radius: 0 0 8px 8px;
 }
 
-.hotkey-desc {
-  font-size: 14px;
-  color: #666;
+.shortcuts-info {
+    text-align: center;
+    font-size: 12px;
+    color: #6c757d;
 }
 
-#close-modal {
-  width: 100%;
-  height: 36px;
-  border-radius: 8px;
-  font-size: 14px;
+/* レスポンシブデザイン */
+@media (max-width: 768px) {
+    .controls-panel {
+        grid-template-columns: 1fr;
+    }
+    
+    .app-header {
+        padding: 10px 15px;
+    }
+    
+    .app-main {
+        padding: 15px;
+    }
 }
 
-/* Resize handles - 改善版 */
-.resize-handle {
-  position: absolute;
-  z-index: 1000;
-  -webkit-app-region: no-drag;
-  background: rgba(0, 122, 255, 0.2);
-  border: 2px solid rgba(0, 122, 255, 0.4);
-  border-radius: 6px;
-  opacity: 0;
-  visibility: hidden;
-  transition: all 0.2s ease;
+/* ダークモード対応 */
+@media (prefers-color-scheme: dark) {
+    body {
+        background: #1d1d1f;
+        color: #f5f5f7;
+    }
+    
+    #app-container {
+        background: #2d2d2f;
+    }
+    
+    .controls-panel {
+        background: #3a3a3c;
+        border-color: #48484a;
+    }
+    
+    .control-group label {
+        color: #f5f5f7;
+    }
+    
+    .control-group select,
+    .control-group input[type="checkbox"] {
+        background: #48484a;
+        border-color: #636366;
+        color: #f5f5f7;
+    }
+    
+    .app-footer {
+        background: #3a3a3c;
+        border-color: #48484a;
+    }
+    
+    .shortcuts-info {
+        color: #98989d;
+    }
 }
 
-/* アクティブ時のみリサイズハンドル表示 */
-#container.active .resize-handle {
-  opacity: 0.7;
-  visibility: visible;
+/* アニメーション */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-.resize-handle.nw {
-  top: -12px;
-  left: -12px;
-  width: 28px;
-  height: 28px;
-  cursor: nw-resize;
+.app-main {
+    animation: fadeIn 0.3s ease-out;
 }
 
-.resize-handle.ne {
-  top: -12px;
-  right: -12px;
-  width: 28px;
-  height: 28px;
-  cursor: ne-resize;
+/* エラー表示 */
+.error-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255, 107, 107, 0.9);
+    color: white;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    z-index: 10;
 }
 
-/* 左下ハンドルを強化 */
-.resize-handle.sw {
-  bottom: -12px;
-  left: -12px;
-  width: 32px;
-  height: 32px;
-  cursor: sw-resize;
-  background: rgba(0, 122, 255, 0.3);
-  border: 3px solid rgba(0, 122, 255, 0.6);
+/* ローディング表示 */
+.loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 16px;
+    z-index: 5;
 }
 
-/* 右下ハンドルを最大強化 */
-.resize-handle.se {
-  bottom: -12px;
-  right: -12px;
-  width: 36px;
-  height: 36px;
-  cursor: se-resize;
-  background: rgba(0, 122, 255, 0.4);
-  border: 3px solid rgba(0, 122, 255, 0.8);
-  border-radius: 8px;
+.loading::after {
+    content: '';
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 1s ease-in-out infinite;
+    margin-left: 10px;
 }
 
-.resize-handle:hover {
-  background: rgba(0, 122, 255, 0.5) !important;
-  border-color: rgba(0, 122, 255, 0.9) !important;
-  transform: scale(1.1);
-}
-
-.resize-handle.se:hover {
-  background: rgba(0, 122, 255, 0.6) !important;
-  border-color: rgba(0, 122, 255, 1) !important;
-  transform: scale(1.15);
-}
-
-.resize-handle.sw:hover {
-  background: rgba(0, 122, 255, 0.5) !important;
-  border-color: rgba(0, 122, 255, 0.9) !important;
-  transform: scale(1.1);
-}
-
-.settings-panel {
-  position: absolute;
-  bottom: 50px;
-  right: 8px;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 12px;
-  padding: 0;
-  min-width: 220px;
-  max-width: 280px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(12px);
-  -webkit-app-region: no-drag;
-  transition: opacity 0.3s ease, transform 0.3s ease;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-/* 設定パネルヘッダー */
-.settings-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background: rgba(0, 122, 255, 0.1);
-  border-radius: 12px 12px 0 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.settings-header h3 {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: #333;
-}
-
-/* 閉じるボタン */
-.close-btn {
-  width: 24px !important;
-  height: 24px !important;
-  background: rgba(255, 255, 255, 0.8) !important;
-  border: 1px solid rgba(0, 0, 0, 0.1) !important;
-  border-radius: 50% !important;
-  cursor: pointer;
-  font-size: 16px !important;
-  font-weight: bold;
-  color: #666 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  transition: all 0.2s ease !important;
-  line-height: 1 !important;
-  padding: 0 !important;
-}
-
-.close-btn:hover {
-  background: rgba(255, 59, 48, 0.1) !important;
-  color: #ff3b30 !important;
-  border-color: rgba(255, 59, 48, 0.3) !important;
-  transform: scale(1.05) !important;
-}
-
-.close-btn:active {
-  transform: scale(0.95) !important;
-}
-
-.settings-panel * {
-  -webkit-app-region: no-drag;
-}
-
-.settings-panel.hidden {
-  opacity: 0;
-  transform: translateY(10px);
-  pointer-events: none;
-}
-
-.setting-group {
-  margin-bottom: 16px;
-  padding: 0 16px;
-}
-
-.setting-group:first-of-type {
-  margin-top: 16px;
-}
-
-.setting-group:last-child {
-  margin-bottom: 16px;
-}
-
-.setting-group label {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 8px;
-}
-
-.setting-group input[type="range"] {
-  width: 100%;
-  margin-bottom: 4px;
-  height: 6px;
-  background: #ddd;
-  border-radius: 3px;
-  outline: none;
-  -webkit-appearance: none;
-  cursor: pointer;
-}
-
-.setting-group input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 18px;
-  height: 18px;
-  background: #007AFF;
-  border-radius: 50%;
-  cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.setting-group input[type="range"]::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
-  background: #007AFF;
-  border-radius: 50%;
-  cursor: pointer;
-  border: none;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.setting-group span {
-  font-size: 11px;
-  color: #666;
-  float: right;
-}
-
-.setting-group select {
-  width: 100%;
-  padding: 6px 8px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  background: white;
-  font-size: 12px;
-  color: #333;
-}
-
-/* 背景色選択ボタン */
-.color-options {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.color-btn {
-  width: 28px;
-  height: 28px;
-  border: 2px solid transparent;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.color-btn:hover {
-  transform: scale(1.1);
-  border-color: #007AFF;
-}
-
-.color-btn.active {
-  border-color: #007AFF;
-  border-width: 3px;
-  transform: scale(1.05);
-}
-
-.transparent-btn {
-  background: linear-gradient(45deg, #f0f0f0 25%, transparent 25%), 
-              linear-gradient(-45deg, #f0f0f0 25%, transparent 25%), 
-              linear-gradient(45deg, transparent 75%, #f0f0f0 75%), 
-              linear-gradient(-45deg, transparent 75%, #f0f0f0 75%);
-  background-size: 8px 8px;
-  background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
-}
-
-#custom-color {
-  width: 28px;
-  height: 28px;
-  border: 2px solid #ddd;
-  border-radius: 6px;
-  cursor: pointer;
-  padding: 0;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-}
-
-#custom-color::-webkit-color-swatch-wrapper {
-  padding: 0;
-}
-
-#custom-color::-webkit-color-swatch {
-  border: none;
-  border-radius: 4px;
-}
-
-/* macOS背景処理ボタン */
-.feature-btn {
-  width: 100%;
-  height: 36px;
-  background: linear-gradient(135deg, #007AFF, #5AC8FA);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
-}
-
-.feature-btn:hover {
-  background: linear-gradient(135deg, #0056b3, #4A9EE7);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4);
-}
-
-.feature-btn:active {
-  transform: translateY(0);
-}
-
-.feature-btn.enabled {
-  background: linear-gradient(135deg, #34C759, #30D158);
-  box-shadow: 0 2px 8px rgba(52, 199, 89, 0.3);
-}
-
-.setting-group small {
-  display: block;
-  font-size: 10px;
-  color: #666;
-  margin-top: 4px;
-  line-height: 1.2;
-}
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+} 

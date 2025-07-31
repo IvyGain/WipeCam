@@ -1,28 +1,25 @@
 import { CameraManager } from './camera.js';
 import { SegmentationManagerAppStore } from './segmentation-manager-appstore.js';
 import { UIManager } from './ui-manager.js';
-import { WindowManager } from './window-manager.js';
 
 class RendererAppStore {
   private cameraManager: CameraManager;
   private segmentationManager: SegmentationManagerAppStore;
   private uiManager: UIManager;
-  private windowManager: WindowManager;
   private isInitialized = false;
 
   constructor() {
     this.cameraManager = new CameraManager();
     this.segmentationManager = new SegmentationManagerAppStore();
     this.uiManager = new UIManager();
-    this.windowManager = new WindowManager();
   }
 
   async initialize(): Promise<void> {
     try {
       console.log('🚀 AppStore対応版 WipeCam レンダラープロセス開始');
       
-      // UI初期化
-      await this.uiManager.initialize();
+      // AppStore版用のUI初期化
+      this.initializeAppStoreUI();
       
       // 背景除去機能初期化
       await this.segmentationManager.initializeBackgroundRemoval();
@@ -44,14 +41,60 @@ class RendererAppStore {
     }
   }
 
+  private initializeAppStoreUI(): void {
+    console.log('🎨 AppStore版UI初期化中...');
+    
+    // カメラステータス表示の初期化
+    const statusText = document.getElementById('camera-status-text');
+    if (statusText) {
+      statusText.textContent = 'カメラ初期化中...';
+    }
+    
+    // コントロールパネルの初期化
+    this.initializeControlPanel();
+    
+    console.log('✅ AppStore版UI初期化完了');
+  }
+
+  private initializeControlPanel(): void {
+    // 背景除去の初期状態を設定
+    const backgroundToggle = document.getElementById('background-toggle') as HTMLInputElement;
+    if (backgroundToggle) {
+      const savedState = localStorage.getItem('backgroundRemovalEnabled');
+      backgroundToggle.checked = savedState === 'true';
+    }
+    
+    // 背景色の初期状態を設定
+    const backgroundColorSelect = document.getElementById('background-color') as HTMLSelectElement;
+    if (backgroundColorSelect) {
+      const savedColor = localStorage.getItem('backgroundColor') || 'transparent';
+      backgroundColorSelect.value = savedColor;
+    }
+    
+    // エフェクトの初期状態を設定
+    const effectSelect = document.getElementById('effect-select') as HTMLSelectElement;
+    if (effectSelect) {
+      effectSelect.value = 'none';
+    }
+  }
+
   private async initializeCamera(): Promise<void> {
     try {
       const cameras = await this.cameraManager.getCameraDevices();
       console.log('📹 利用可能なカメラ:', cameras);
       
+      // カメラ選択ドロップダウンを更新
+      this.updateCameraSelect(cameras);
+      
       if (cameras.length > 0) {
         const stream = await this.cameraManager.startCamera();
         this.setupVideoStream(stream);
+        
+        // ステータスを更新
+        const statusText = document.getElementById('camera-status-text');
+        if (statusText) {
+          statusText.textContent = 'カメラ接続済み';
+        }
       } else {
         console.warn('⚠️ カメラが見つかりません');
         this.showCameraError();
@@ -59,6 +102,29 @@ class RendererAppStore {
     } catch (error) {
       console.error('❌ カメラ初期化エラー:', error);
       this.showCameraError();
+    }
+  }
+
+  private updateCameraSelect(cameras: any[]): void {
+    const cameraSelect = document.getElementById('camera-select') as HTMLSelectElement;
+    if (!cameraSelect) return;
+    
+    // 既存のオプションをクリア（最初の「カメラを選択...」を除く）
+    while (cameraSelect.children.length > 1) {
+      cameraSelect.removeChild(cameraSelect.lastChild!);
+    }
+    
+    // 新しいカメラオプションを追加
+    cameras.forEach((camera, index) => {
+      const option = document.createElement('option');
+      option.value = camera.deviceId;
+      option.textContent = camera.label || `カメラ ${index + 1}`;
+      cameraSelect.appendChild(option);
+    });
+    
+    // 最初のカメラを選択
+    if (cameras.length > 0) {
+      cameraSelect.value = cameras[0].deviceId;
     }
   }
 
@@ -144,6 +210,49 @@ class RendererAppStore {
       saveButton.addEventListener('click', () => {
         this.saveImage();
       });
+    }
+
+    // ウィンドウコントロール
+    const minimizeBtn = document.getElementById('minimize-btn') as HTMLButtonElement;
+    const maximizeBtn = document.getElementById('maximize-btn') as HTMLButtonElement;
+    const closeBtn = document.getElementById('close-btn') as HTMLButtonElement;
+
+    if (minimizeBtn) {
+      minimizeBtn.addEventListener('click', () => {
+        this.handleWindowMinimize();
+      });
+    }
+
+    if (maximizeBtn) {
+      maximizeBtn.addEventListener('click', () => {
+        this.handleWindowMaximize();
+      });
+    }
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        this.handleWindowClose();
+      });
+    }
+  }
+
+  private handleWindowMinimize(): void {
+    console.log('🔄 ウィンドウを最小化');
+    // AppStore版では最小化機能を無効化または代替実装
+    alert('AppStore版では最小化機能は制限されています');
+  }
+
+  private handleWindowMaximize(): void {
+    console.log('🔄 ウィンドウを最大化');
+    // AppStore版では最大化機能を無効化または代替実装
+    alert('AppStore版では最大化機能は制限されています');
+  }
+
+  private handleWindowClose(): void {
+    console.log('🔄 アプリケーションを終了');
+    // アプリケーション終了
+    if (typeof window !== 'undefined' && window.close) {
+      window.close();
     }
   }
 
@@ -266,6 +375,7 @@ class RendererAppStore {
 
   private showCameraError(): void {
     const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
     errorDiv.innerHTML = `
       <div style="text-align: center; padding: 20px; color: #ff6b6b;">
         <h3>カメラアクセスエラー</h3>

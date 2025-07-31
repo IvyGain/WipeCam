@@ -1,17 +1,20 @@
 import { CameraManager } from './camera.js';
 import { SegmentationManagerAppStore } from './segmentation-manager-appstore.js';
 import { UIManager } from './ui-manager.js';
+import { WindowManager } from './window-manager.js';
 
 class RendererAppStore {
   private cameraManager: CameraManager;
   private segmentationManager: SegmentationManagerAppStore;
   private uiManager: UIManager;
+  private windowManager: WindowManager;
   private isInitialized = false;
 
   constructor() {
     this.cameraManager = new CameraManager();
     this.segmentationManager = new SegmentationManagerAppStore();
     this.uiManager = new UIManager();
+    this.windowManager = new WindowManager();
   }
 
   async initialize(): Promise<void> {
@@ -219,40 +222,20 @@ class RendererAppStore {
 
     if (minimizeBtn) {
       minimizeBtn.addEventListener('click', () => {
-        this.handleWindowMinimize();
+        this.windowManager.minimize();
       });
     }
 
     if (maximizeBtn) {
       maximizeBtn.addEventListener('click', () => {
-        this.handleWindowMaximize();
+        this.windowManager.maximize();
       });
     }
 
     if (closeBtn) {
       closeBtn.addEventListener('click', () => {
-        this.handleWindowClose();
+        this.windowManager.close();
       });
-    }
-  }
-
-  private handleWindowMinimize(): void {
-    console.log('🔄 ウィンドウを最小化');
-    // AppStore版では最小化機能を無効化または代替実装
-    alert('AppStore版では最小化機能は制限されています');
-  }
-
-  private handleWindowMaximize(): void {
-    console.log('🔄 ウィンドウを最大化');
-    // AppStore版では最大化機能を無効化または代替実装
-    alert('AppStore版では最大化機能は制限されています');
-  }
-
-  private handleWindowClose(): void {
-    console.log('🔄 アプリケーションを終了');
-    // アプリケーション終了
-    if (typeof window !== 'undefined' && window.close) {
-      window.close();
     }
   }
 
