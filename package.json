@@ -2,19 +2,20 @@
   "name": "WipeCam",
   "version": "1.0.0",
   "description": "AI-powered background removal camera app with real-time transparent segmentation",
-  "main": "main.js",
+  "main": "dist/main.js",
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "build:ts": "tsc",
-    "dev": "pnpm build:ts && electron .",
+    "build:main": "tsc src/main.ts --outDir dist --target esnext --module esnext --moduleResolution bundler --esModuleInterop --strict",
+    "dev": "pnpm build:ts && pnpm build:main && electron .",
     "check": "pnpm typecheck && pnpm test",
-    "build": "pnpm build:ts && electron-builder",
-    "build:mac": "pnpm build:ts && electron-builder --mac",
-    "build:win": "pnpm build:ts && electron-builder --win",
-    "build:linux": "pnpm build:ts && electron-builder --linux",
-    "dist": "pnpm build:ts && electron-builder --publish=never"
+    "build": "pnpm build:ts && pnpm build:main && electron-builder",
+    "build:mac": "pnpm build:ts && pnpm build:main && electron-builder --mac",
+    "build:win": "pnpm build:ts && pnpm build:main && electron-builder --win",
+    "build:linux": "pnpm build:ts && pnpm build:main && electron-builder --linux",
+    "dist": "pnpm build:ts && pnpm build:main && electron-builder --publish=never"
   },
   "keywords": [
     "camera",
@@ -44,9 +45,9 @@
       "output": "dist"
     },
     "files": [
-      "main.js",
+      "dist/main.js",
       "preload.js",
-      "renderer.js",
+      "dist/renderer.js",
       "index.html",
       "style.css",
       "assets/icon.*",
