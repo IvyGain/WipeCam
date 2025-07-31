@@ -1,0 +1,74 @@
+{
+  "name": "WipeCam-AppStore",
+  "version": "1.0.0",
+  "description": "AI-powered background removal camera app for Mac App Store",
+  "main": "dist/main.js",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "build:ts": "tsc",
+    "dev": "pnpm build:ts && electron .",
+    "dev:appstore": "pnpm build:ts && electron . --appstore",
+    "check": "pnpm typecheck && pnpm test",
+    "build": "pnpm build:ts && electron-builder",
+    "build:appstore": "pnpm build:ts && electron-builder --config package-appstore.json",
+    "build:mac": "pnpm build:ts && electron-builder --mac",
+    "dist": "pnpm build:ts && electron-builder --publish=never",
+    "dist:appstore": "pnpm build:ts && electron-builder --config package-appstore.json --publish=never"
+  },
+  "keywords": [
+    "camera",
+    "background-removal",
+    "ai",
+    "photography",
+    "video"
+  ],
+  "author": "WipeCam",
+  "license": "MIT",
+  "packageManager": "pnpm@10.13.1",
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "^24.0.15",
+    "@vitest/coverage-v8": "^3.2.4",
+    "electron": "^37.2.4",
+    "electron-builder": "^26.0.12",
+    "jsdom": "^26.1.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  },
+  "build": {
+    "appId": "com.wipecam.appstore",
+    "productName": "WipeCam",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "dist/main.js",
+      "preload.js",
+      "renderer.js",
+      "index.html",
+      "style.css",
+      "assets/icon.*",
+      "node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.photography",
+      "icon": "assets/icon.icns",
+      "target": [
+        {
+          "target": "mas",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "entitlements": "entitlements-appstore.mac.plist",
+      "entitlementsInherit": "entitlements-appstore.mac.plist",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "provisioningProfile": "embedded.provisionprofile"
+    }
+  }
+} 

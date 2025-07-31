@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WipeCam - AppStore版</title>
+    <link rel="stylesheet" href="style-appstore.css">
+</head>
+<body>
+    <div id="app-container">
+        <header class="app-header">
+            <h1>WipeCam</h1>
+            <div class="app-controls">
+                <button id="minimize-btn" class="control-btn">−</button>
+                <button id="maximize-btn" class="control-btn">□</button>
+                <button id="close-btn" class="control-btn">×</button>
+            </div>
+        </header>
+
+        <main class="app-main">
+            <div class="camera-container">
+                <video id="video" autoplay muted playsinline></video>
+                <canvas id="canvas"></canvas>
+                
+                <div class="camera-overlay">
+                    <div class="camera-status">
+                        <span id="camera-status-text">カメラ初期化中...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls-panel">
+                <div class="control-group">
+                    <label for="camera-select">カメラ:</label>
+                    <select id="camera-select">
+                        <option value="">カメラを選択...</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="background-toggle">
+                        <input type="checkbox" id="background-toggle">
+                        背景除去
+                    </label>
+                </div>
+
+                <div class="control-group">
+                    <label for="background-color">背景色:</label>
+                    <select id="background-color">
+                        <option value="transparent">透明</option>
+                        <option value="#000000">黒</option>
+                        <option value="#ffffff">白</option>
+                        <option value="#00ff00">緑</option>
+                        <option value="#0000ff">青</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="effect-select">エフェクト:</label>
+                    <select id="effect-select">
+                        <option value="none">なし</option>
+                        <option value="vintage">ヴィンテージ</option>
+                        <option value="cool">クール</option>
+                        <option value="warm">ウォーム</option>
+                        <option value="noir">ノワール</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <button id="save-button" class="primary-btn">画像保存</button>
+                </div>
+            </div>
+        </main>
+
+        <footer class="app-footer">
+            <div class="shortcuts-info">
+                <span>ショートカット: Cmd+S (保存) | Cmd+B (背景除去) | Cmd+R (カメラ再起動)</span>
+            </div>
+        </footer>
+    </div>
+
+    <script type="module" src="renderer-appstore.js"></script>
+</body>
+</html> 

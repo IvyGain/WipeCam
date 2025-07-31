@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>ja</string>
+    <key>CFBundleExecutable</key>
+    <string>WipeCam</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.wipecam.appstore</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>WipeCam</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>10.15</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSRequiresAquaSystemAppearance</key>
+    <false/>
+    
+    <!-- App Store Required Privacy Descriptions -->
+    <key>NSCameraUsageDescription</key>
+    <string>WipeCamは背景除去機能を提供するためにカメラへのアクセスが必要です。カメラの映像はリアルタイムで処理され、背景を除去した映像を表示します。映像データはデバイス上でのみ処理され、外部に送信されることはありません。</string>
+    
+    <key>NSMicrophoneUsageDescription</key>
+    <string>WipeCamは動画録画機能を提供するためにマイクへのアクセスが必要です。音声データはデバイス上でのみ処理され、外部に送信されることはありません。</string>
+    
+    <!-- App Store Specific Settings -->
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.photography</string>
+    
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>画像ファイル</string>
+            <key>CFBundleTypeExtensions</key>
+            <array>
+                <string>png</string>
+                <string>jpg</string>
+                <string>jpeg</string>
+            </array>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+            <key>LSHandlerRank</key>
+            <string>Owner</string>
+        </dict>
+    </array>
+    
+    <key>UTExportedTypeDeclarations</key>
+    <array>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>com.wipecam.appstore.image</string>
+            <key>UTTypeDescription</key>
+            <string>WipeCam画像</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.image</string>
+            </array>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>wcp</string>
+                </array>
+            </dict>
+        </dict>
+    </array>
+    
+    <!-- App Store Sandbox Requirements -->
+    <key>LSEnvironment</key>
+    <dict>
+        <key>ELECTRON_ENABLE_LOGGING</key>
+        <string>1</string>
+    </dict>
+    
+    <!-- App Store Metadata -->
+    <key>CFBundleDisplayName</key>
+    <string>WipeCam</string>
+    
+    <key>CFBundleGetInfoString</key>
+    <string>AI-powered background removal camera app</string>
+    
+    <key>CFBundleIconFile</key>
+    <string>icon.icns</string>
+    
+    <key>CFBundleSignature</key>
+    <string>????</string>
+    
+    <key>CFBundleSupportedPlatforms</key>
+    <array>
+        <string>MacOSX</string>
+    </array>
+    
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.photography</string>
+    
+    <key>NSHumanReadableCopyright</key>
+    <string>Copyright © 2024 WipeCam. All rights reserved.</string>
+</dict>
+</plist> 

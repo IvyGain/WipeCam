@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- App Store Sandbox Requirements -->
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+    
+    <!-- Camera and Microphone Access -->
+    <key>com.apple.security.device.camera</key>
+    <true/>
+    <key>com.apple.security.device.microphone</key>
+    <true/>
+    
+    <!-- Network Access for AI Processing -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+    
+    <!-- File Access for Saving Images -->
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+    
+    <!-- Temporary File Access -->
+    <key>com.apple.security.files.temporary</key>
+    <true/>
+    
+    <!-- Hardware Acceleration -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+    
+    <!-- App Store Specific -->
+    <key>com.apple.security.inherit</key>
+    <true/>
+</dict>
+</plist> 
