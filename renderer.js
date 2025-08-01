@@ -211,49 +211,6 @@ class RendererAppStore {
         this.saveImage();
       });
     }
-
-    // ウィンドウコントロール
-    const minimizeBtn = document.getElementById('minimize-btn') as HTMLButtonElement;
-    const maximizeBtn = document.getElementById('maximize-btn') as HTMLButtonElement;
-    const closeBtn = document.getElementById('close-btn') as HTMLButtonElement;
-
-    if (minimizeBtn) {
-      minimizeBtn.addEventListener('click', () => {
-        this.handleWindowMinimize();
-      });
-    }
-
-    if (maximizeBtn) {
-      maximizeBtn.addEventListener('click', () => {
-        this.handleWindowMaximize();
-      });
-    }
-
-    if (closeBtn) {
-      closeBtn.addEventListener('click', () => {
-        this.handleWindowClose();
-      });
-    }
-  }
-
-  private handleWindowMinimize(): void {
-    console.log('🔄 ウィンドウを最小化');
-    // AppStore版では最小化機能を無効化または代替実装
-    alert('AppStore版では最小化機能は制限されています');
-  }
-
-  private handleWindowMaximize(): void {
-    console.log('🔄 ウィンドウを最大化');
-    // AppStore版では最大化機能を無効化または代替実装
-    alert('AppStore版では最大化機能は制限されています');
-  }
-
-  private handleWindowClose(): void {
-    console.log('🔄 アプリケーションを終了');
-    // アプリケーション終了
-    if (typeof window !== 'undefined' && window.close) {
-      window.close();
-    }
   }
 
   private setupAppShortcuts(): void {

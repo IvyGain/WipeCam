@@ -19,52 +19,6 @@ body {
     flex-direction: column;
     height: 100vh;
     background: #ffffff;
-    border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-}
-
-/* ヘッダー */
-.app-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 20px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-radius: 8px 8px 0 0;
-    -webkit-app-region: drag;
-}
-
-.app-header h1 {
-    font-size: 18px;
-    font-weight: 600;
-    margin: 0;
-}
-
-.app-controls {
-    display: flex;
-    gap: 8px;
-    -webkit-app-region: no-drag;
-}
-
-.control-btn {
-    width: 24px;
-    height: 24px;
-    border: none;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
-    font-size: 12px;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.control-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
-}
-
-#close-btn:hover {
-    background: #ff5f57;
 }
 
 /* メインコンテンツ */
@@ -197,7 +151,6 @@ body {
     padding: 12px 20px;
     background: #f8f9fa;
     border-top: 1px solid #e9ecef;
-    border-radius: 0 0 8px 8px;
 }
 
 .shortcuts-info {
@@ -210,10 +163,6 @@ body {
 @media (max-width: 768px) {
     .controls-panel {
         grid-template-columns: 1fr;
-    }
-    
-    .app-header {
-        padding: 10px 15px;
     }
     
     .app-main {

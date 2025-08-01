@@ -16,12 +16,13 @@ function createWindow(): void {
     maxWidth: 1920,
     maxHeight: 1080,
     transparent: false, // AppStoreでは透明ウィンドウは禁止
-    frame: true, // 通常のウィンドウフレームを使用
+    frame: true, // 通常のウィンドウフレームを使用（Macのトラフィックライトボタンが表示される）
     alwaysOnTop: false, // AppStoreでは常時最前面表示は禁止
     hasShadow: true,
     resizable: true,
     movable: true,
     show: false, // 初期状態では非表示
+    titleBarStyle: 'default', // Macの標準タイトルバーを使用
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
